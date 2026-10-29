@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELEUSIS ARENA — arène d'induction</title>
+<style>
+:root{
+  --bg0:#0b0d20; --bg1:#141737; --panel:#181c40; --panel2:#1f2450;
+  --ink:#eef0ff; --dim:#8b90c0; --accent:#ffd32a; --ok:#2ed573; --ko:#ff4757;
+  --card:#1a1e3e; --cardline:#343a6e;
+}
+*{box-sizing:border-box; -webkit-user-select:none; user-select:none;}
+html,body{height:100%;}
+body{
+  margin:0; color:var(--ink); --amp:1;
+  font-family:"Segoe UI", "Hiragino Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, #232a66 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, #3a1856 0%, transparent 55%),
+    linear-gradient(160deg, var(--bg0), var(--bg1));
+  overflow:hidden;
+}
+#app{display:flex; flex-direction:column; height:100vh; padding:10px 14px; gap:10px; position:relative; z-index:2;}
+
+/* ---------- engrenages décoratifs ---------- */
+#gears{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.gear{position:absolute; animation:gearspin var(--d,16s) linear infinite; opacity:var(--o,.09);}
+.gear.rev{animation-direction:reverse;}
+@keyframes gearspin{to{transform:rotate(360deg);}}
+body.rush .gear{animation-duration:calc(var(--d,16s)/4);}
+
+/* ---------- halo lumineux dynamique autour de l'écran ---------- */
+#glowFrame{position:fixed; inset:0; pointer-events:none; z-index:46;
+  box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);
+  animation:breathe 5.5s ease-in-out infinite;}
+@keyframes breathe{50%{box-shadow:inset 0 0 130px 20px rgba(90,110,255,.33), inset 0 0 300px 70px rgba(255,120,220,.13);}}
+#glowFrame.flash-good{animation:glowGood 1s ease-out;}
+@keyframes glowGood{0%{box-shadow:inset 0 0 170px 45px rgba(46,213,115,.6), inset 0 0 320px 90px rgba(255,211,42,.25);}
+  100%{box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);}}
+#glowFrame.flash-bad{animation:glowBad 1s ease-out;}
+@keyframes glowBad{0%{box-shadow:inset 0 0 190px 60px rgba(255,71,87,.65), inset 0 0 340px 100px rgba(255,40,40,.3);}
+  100%{box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);}}
+
+/* ---------- header ---------- */
+#hud{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+#logo{font-weight:900; font-size:22px; letter-spacing:3px;
+  background:linear-gradient(90deg,#ffd32a,#ff7f2a,#ff4757);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 22px rgba(255,150,40,.25); white-space:nowrap;}
+.hudbox{background:var(--panel); border:1px solid var(--cardline); border-radius:12px;
+  padding:6px 12px; display:flex; align-items:baseline; gap:8px; min-width:0;}
+.hudbox .lbl{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;}
+.hudbox .val{font-weight:800; font-size:18px; font-variant-numeric:tabular-nums;}
+#brierBox{border-color:var(--accent); box-shadow:0 0 14px rgba(255,211,42,.2);}
+#brierBox .val{font-size:22px;}
+#brierVal.good{color:var(--ok); text-shadow:0 0 10px rgba(46,213,115,.7);}
+#brierVal.bad{color:var(--ko); text-shadow:0 0 10px rgba(255,71,87,.7);}
+#comboVal.hot{color:var(--accent); text-shadow:0 0 12px rgba(255,211,42,.8);}
+#hud .spacer{flex:1;}
+.iconbtn{background:var(--panel); color:var(--ink); border:1px solid var(--cardline);
+  border-radius:10px; padding:7px 12px; font-size:15px; cursor:pointer; transition:transform .08s;}
+.iconbtn:hover{transform:translateY(-2px); border-color:var(--accent);}
+select#levelSel{background:var(--panel); color:var(--ink); border:1px solid var(--cardline);
+  border-radius:10px; padding:7px 8px; font-size:13px; cursor:pointer; max-width:210px;}
+
+/* ---------- timeline ---------- */
+#timelineWrap{flex:1; min-height:0; background:rgba(10,12,30,.55); border:1px solid var(--cardline);
+  border-radius:16px; padding:10px; position:relative; overflow:hidden;}
+#tlLabels{position:absolute; left:14px; top:8px; bottom:8px; display:flex; flex-direction:column;
+  justify-content:space-around; z-index:1; pointer-events:none;}
+#tlLabels div{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;
+  writing-mode:vertical-rl; transform:rotate(180deg); opacity:.8;}
+#timeline{height:100%; overflow-x:auto; overflow-y:hidden; display:flex; align-items:flex-start;
+  gap:8px; padding:6px 10px 6px 34px; scroll-behavior:smooth;}
+#timeline::-webkit-scrollbar{height:8px;}
+#timeline::-webkit-scrollbar-thumb{background:#333a72; border-radius:4px;}
+.tlcol{display:flex; flex-direction:column; gap:6px; align-items:center; flex:0 0 auto;}
+.tlAccept{height:118px; display:flex; align-items:center;}
+.tlRejects{display:flex; flex-direction:column; gap:4px; align-items:center;}
+.startMark{width:86px; height:112px; border:2px dashed #3a3f75; border-radius:12px;
+  display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:11px;
+  letter-spacing:2px; text-align:center;}
+.card{position:relative; border-radius:12px; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5));}
+.card.ok{animation:popin .45s cubic-bezier(.2,2.2,.4,1);}
+.card.ko{animation:koslide .4s ease-out; opacity:.68;}
+.card.ko::after{content:"✕"; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:38px; font-weight:900; color:var(--ko);
+  text-shadow:0 0 10px rgba(255,71,87,.9);}
+.card .betTag{position:absolute; right:3px; bottom:3px; font-size:10px; font-weight:800;
+  padding:1px 5px; border-radius:6px; background:rgba(10,12,30,.85);}
+.card .betTag.g{color:var(--ok);} .card .betTag.b{color:var(--ko);} .card .betTag.n{color:var(--dim);}
+@keyframes popin{0%{transform:scale(.2) rotate(-14deg);}60%{transform:scale(1.15) rotate(3deg);}100%{transform:scale(1) rotate(0);}}
+@keyframes koslide{0%{transform:translateY(-18px); opacity:0;}100%{transform:translateY(0); opacity:.68;}}
+
+/* ---------- builder ---------- */
+#builder{display:flex; gap:14px; background:var(--panel); border:1px solid var(--cardline);
+  border-radius:16px; padding:12px 14px; align-items:stretch;}
+#preview{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:6px; justify-content:center;}
+#previewCard{transition:transform .15s;}
+#previewCard:hover{transform:scale(1.05) rotate(-2deg);}
+#dims{flex:1; display:flex; flex-direction:column; gap:7px; justify-content:center; min-width:0; overflow-y:auto; max-height:240px;}
+.dimrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.dimlbl{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; width:74px; flex:0 0 auto;}
+.chip{background:var(--panel2); border:1.5px solid var(--cardline); color:var(--ink);
+  border-radius:999px; padding:4px 11px; font-size:12.5px; cursor:pointer;
+  transition:transform .07s, border-color .07s, background .07s; display:inline-flex; align-items:center; gap:5px;}
+.chip:hover{transform:translateY(-2px) scale(1.05);}
+.chip.sel{border-color:var(--accent); background:#33307a; box-shadow:0 0 10px rgba(255,211,42,.35); font-weight:700;}
+.chip .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+#actions{flex:0 0 auto; display:flex; flex-direction:column; gap:10px; justify-content:center; align-items:center;}
+#betBox{display:flex; flex-direction:column; gap:4px; align-items:center;}
+#betLbl{font-size:11px; letter-spacing:1px; color:var(--dim);}
+#betVal{color:var(--accent); font-variant-numeric:tabular-nums;}
+#betSlider{width:180px; accent-color:#a55eea; cursor:pointer;}
+#btnTest{font-size:20px; font-weight:900; letter-spacing:2px; padding:16px 30px; border:none;
+  border-radius:14px; cursor:pointer; color:#1a1206;
+  background:linear-gradient(135deg,#ffd32a,#ff9f2a); box-shadow:0 6px 0 #9c6c00, 0 8px 24px rgba(255,180,40,.35);
+  transition:transform .07s, box-shadow .07s; animation:btnpulse 2.2s infinite;}
+#btnTest:active{transform:translateY(5px); box-shadow:0 1px 0 #9c6c00;}
+@keyframes btnpulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.14);}}
+#btnReveal{font-size:14px; font-weight:800; letter-spacing:1px; padding:10px 18px; border:none;
+  border-radius:12px; cursor:pointer; color:#fff; background:linear-gradient(135deg,#a55eea,#5e6cea);
+  box-shadow:0 4px 0 #3c2c86; transition:transform .07s;}
+#btnReveal:active{transform:translateY(3px); box-shadow:0 1px 0 #3c2c86;}
+#btnReveal small{display:block; font-weight:600; font-size:10px; opacity:.8; letter-spacing:2px;}
+
+/* ---------- overlays / fx ---------- */
+#fxCanvas{position:fixed; inset:0; pointer-events:none; z-index:50;}
+#speedlines{position:fixed; inset:0; pointer-events:none; z-index:40; opacity:0;
+  background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.09) 0deg 1.2deg, transparent 1.2deg 9deg);
+  transition:opacity .3s;}
+body.rush #speedlines{opacity:1; animation:spin 1.4s linear infinite;}
+@keyframes spin{to{transform:rotate(9deg) scale(1.06);}}
+body.shake #app{animation:bodyshake .42s;}
+@keyframes bodyshake{0%,100%{transform:translate(0,0);}
+  20%{transform:translate(calc(var(--amp)*-9px),calc(var(--amp)*4px)) rotate(calc(var(--amp)*-.3deg));}
+  40%{transform:translate(calc(var(--amp)*8px),calc(var(--amp)*-5px));}
+  60%{transform:translate(calc(var(--amp)*-5px),calc(var(--amp)*3px));}
+  80%{transform:translate(calc(var(--amp)*3px),calc(var(--amp)*-2px));}}
+.floater{position:fixed; z-index:60; pointer-events:none; font-weight:900; font-size:24px;
+  text-shadow:0 2px 6px rgba(0,0,0,.6); animation:floatup 1.1s ease-out forwards;}
+@keyframes floatup{from{opacity:1; transform:translateY(0) scale(.7);}30%{transform:translateY(-18px) scale(1.2);}to{opacity:0; transform:translateY(-70px) scale(1);}}
+#comboBurst{position:fixed; left:50%; top:36%; transform:translate(-50%,-50%); z-index:61;
+  pointer-events:none; font-weight:900; font-size:60px; letter-spacing:2px; opacity:0;
+  color:var(--accent); text-shadow:0 0 24px rgba(255,211,42,.9), 0 4px 0 #7a5c00; font-style:italic;}
+#comboBurst.go{animation:comboAnim .8s ease-out;}
+@keyframes comboAnim{0%{opacity:0; transform:translate(-50%,-50%) scale(3) rotate(-8deg);}
+  25%{opacity:1; transform:translate(-50%,-50%) scale(1) rotate(2deg);}
+  80%{opacity:1;}100%{opacity:0; transform:translate(-50%,-50%) scale(1.1);}}
+.modalveil{position:fixed; inset:0; background:rgba(5,6,18,.78); z-index:100;
+  display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px);}
+.modal{background:var(--panel); border:1px solid var(--cardline); border-radius:18px;
+  max-width:min(860px,94vw); max-height:88vh; overflow:auto; padding:22px 26px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6); animation:popin .35s cubic-bezier(.2,1.8,.4,1);}
+.modal h2{margin:0 0 10px; letter-spacing:2px;}
+.modal pre{background:#0d1029; border:1px solid var(--cardline); border-radius:10px;
+  padding:12px; font-size:12px; overflow:auto; user-select:text; -webkit-user-select:text; white-space:pre-wrap;}
+.modal .btnrow{display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap;}
+.pbtn{border:none; border-radius:10px; padding:12px 22px; font-weight:800; cursor:pointer; font-size:15px;}
+.pbtn.gold{background:linear-gradient(135deg,#ffd32a,#ff9f2a); color:#1a1206;}
+.pbtn.ghost{background:var(--panel2); color:var(--ink); border:1px solid var(--cardline);}
+.pbtn.danger{background:linear-gradient(135deg,#ff4757,#c0392b); color:#fff;}
+#ruleReveal{font-size:clamp(15px,2.4vw,22px); line-height:1.5; background:#0d1029;
+  border:1px solid var(--accent); border-radius:14px; padding:16px 20px; margin:12px 0;
+  box-shadow:0 0 30px rgba(255,211,42,.25);}
+
+/* ---------- INTRO ---------- */
+#intro{position:fixed; inset:0; z-index:300; background:#04050e;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;}
+#intro.fadeout{transition:opacity .6s ease; opacity:0;}
+#introGate{display:flex; flex-direction:column; align-items:center; gap:18px; cursor:pointer; text-align:center;}
+#introGate .gatelogo{font-size:70px; animation:gearspin 9s linear infinite; opacity:.55; filter:drop-shadow(0 0 18px rgba(255,211,42,.4));}
+#introGate .gatetitle{font-size:clamp(26px,5vw,44px); font-weight:900; letter-spacing:8px; color:#3c4382;}
+#introGate .gatehint{font-size:14px; letter-spacing:5px; color:var(--accent); animation:hintpulse 1.6s ease-in-out infinite;}
+@keyframes hintpulse{0%,100%{opacity:.35;}50%{opacity:1; text-shadow:0 0 16px rgba(255,211,42,.8);}}
+#introSeq{position:absolute; inset:0;}
+#introSkip{position:absolute; top:16px; right:20px; z-index:5; background:none; border:1px solid #2a2f5e;
+  color:var(--dim); border-radius:8px; padding:6px 12px; font-size:11px; letter-spacing:2px; cursor:pointer;}
+#introSkip:hover{color:var(--ink); border-color:var(--dim);}
+.iline{position:absolute; left:0; right:0; top:44%; text-align:center; opacity:0;
+  font-size:clamp(20px,4vw,36px); font-weight:300; letter-spacing:6px; color:#cdd3ff; padding:0 20px;}
+.iline b{color:var(--accent); font-weight:800;}
+.iline.show{animation:ilinein 2s ease forwards;}
+@keyframes ilinein{0%{opacity:0; letter-spacing:14px; transform:scale(.92); filter:blur(8px);}
+  22%{opacity:1; filter:blur(0);}72%{opacity:1; letter-spacing:6px;}
+  100%{opacity:0; letter-spacing:10px; transform:scale(1.06); filter:blur(5px);}}
+.introGear{position:absolute; opacity:0; transition:opacity .5s;}
+.introGear.show{opacity:.22; animation:gearspin 2.2s linear infinite;}
+#introGearL{left:-140px; top:50%; margin-top:-190px;}
+#introGearR{right:-120px; top:50%; margin-top:-150px; animation-direction:reverse;}
+#introLogo{position:absolute; left:0; right:0; top:38%; text-align:center; opacity:0;
+  font-size:clamp(38px,9vw,92px); font-weight:900; letter-spacing:6px; font-style:italic;
+  background:linear-gradient(90deg,#ffd32a,#ff7f2a,#ff4757);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 0 30px rgba(255,150,40,.5));}
+#introLogo.show{animation:logoslam .7s cubic-bezier(.2,1.6,.4,1) forwards;}
+@keyframes logoslam{0%{opacity:0; transform:scale(4.2) rotate(-7deg); filter:blur(12px);}
+  55%{opacity:1; transform:scale(.94) rotate(1.5deg); filter:blur(0) drop-shadow(0 0 30px rgba(255,150,40,.5));}
+  100%{opacity:1; transform:scale(1);}}
+#introTag{margin-top:14px; font-size:clamp(12px,2vw,18px); font-weight:600; font-style:normal;
+  letter-spacing:8px; color:var(--dim); -webkit-text-fill-color:var(--dim); opacity:0;}
+#introTag.show{animation:tagin .9s ease forwards;}
+@keyframes tagin{from{opacity:0; letter-spacing:16px;}to{opacity:1; letter-spacing:8px;}}
+#whiteflash{position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;}
+#whiteflash.go{animation:flashout .55s ease-out;}
+@keyframes flashout{0%{opacity:.95;}100%{opacity:0;}}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs id="patternDefs"></defs></svg>
+<div id="gears"></div>
+<div id="glowFrame"></div>
+<div id="speedlines"></div>
+<canvas id="fxCanvas"></canvas>
+<div id="comboBurst"></div>
+
+<!-- Musiques optionnelles : placer intro.mp3 et music.mp3 à côté de ce fichier HTML -->
+<audio id="introMusic" src="intro.mp3" preload="auto"></audio>
+<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+
+<div id="app">
+  <div id="hud">
+    <div id="logo">ELEUSIS ⚡ ARENA</div>
+    <div class="hudbox"><span class="lbl">Niveau</span><span class="val" id="levelName">—</span></div>
+    <div class="hudbox" id="brierBox" title="Brier moyen par carte posée : 0 = prophète, 0.25 = hasard (p=50%), 1 = confiance à contresens. Plus bas = mieux.">
+      <span class="lbl">Brier / carte</span><span class="val" id="brierVal">—</span></div>
+    <div class="hudbox" title="Prédictions gagnantes consécutives (Brier < 0.25)"><span class="lbl">Combo</span><span class="val" id="comboVal">×0</span></div>
+    <div class="hudbox"><span class="lbl">Cartes</span><span class="val" id="movesVal">0</span></div>
+    <div class="spacer"></div>
+    <select id="levelSel"></select>
+    <button class="iconbtn" id="btnNew" title="Nouvelle règle secrète">↻ Nouvelle règle</button>
+    <button class="iconbtn" id="btnHelp" title="Aide & API">❓</button>
+    <button class="iconbtn" id="btnSound" title="Son">🔊</button>
+  </div>
+
+  <div id="timelineWrap">
+    <div id="tlLabels"><div>Acceptés</div><div>Rejetés</div></div>
+    <div id="timeline"></div>
+  </div>
+
+  <div id="builder">
+    <div id="preview"><div id="previewCard"></div></div>
+    <div id="dims"></div>
+    <div id="actions">
+      <div id="betBox">
+        <div id="betLbl">🎲 PARI « accepté » : <b id="betVal">50%</b></div>
+        <input type="range" id="betSlider" min="0" max="100" value="50">
+      </div>
+      <button id="btnTest">TESTER !</button>
+      <button id="btnReveal">👁 RÉVÉLER LA RÈGLE<small>UNE SEULE FOIS !</small></button>
+    </div>
+  </div>
+</div>
+
+<div id="intro">
+  <div id="introGate">
+    <div class="gatelogo">⚙</div>
+    <div class="gatetitle">ELEUSIS ARENA</div>
+    <div class="gatehint">— CLIQUE POUR ENTRER —</div>
+  </div>
+  <div id="introSeq" class="hidden">
+    <button id="introSkip">PASSER ▸</button>
+    <div class="introGear" id="introGearL"></div>
+    <div class="introGear" id="introGearR"></div>
+    <div class="iline" id="il1">Il existe une <b>Règle</b>.</div>
+    <div class="iline" id="il2">Cachée. Silencieuse. <b>Implacable</b>.</div>
+    <div class="iline" id="il3">Seuls les esprits <b>calibrés</b> survivront.</div>
+    <div id="introLogo">ELEUSIS ⚡ ARENA<div id="introTag">PARIE · PRÉDIS · PERCE LE SECRET</div></div>
+    <div id="whiteflash"></div>
+  </div>
+</div>
+
+<script type="application/json" id="arena-state">{}</script>
+<script>
+/*ENGINE-START*/
+const Engine = (() => {
+  'use strict';
+  // ---------- RNG ----------
+  function makeRng(seed){
+    if(seed==null){ seed = (Math.random()*0xffffffff)>>>0; }
+    let s = (seed>>>0) || 1;
+    return function(){ s^=s<<13; s>>>=0; s^=s>>17; s^=s<<5; s>>>=0; return s/4294967296; };
+  }
+  const pick   = (rng,a)=>a[Math.floor(rng()*a.length)];
+  const irange = (rng,a,b)=>a+Math.floor(rng()*(b-a+1));
+
+  // ---------- Univers ----------
+  const SHAPES = [
+    {id:'triangle',sides:3},{id:'carre',sides:4},{id:'pentagone',sides:5},
+    {id:'hexagone',sides:6},{id:'octogone',sides:8},{id:'cercle',sides:0}
+  ];
+  const COLORS  = ['rouge','bleu','vert','jaune','violet','orange'];
+  const SYMBOLS = ['etoile','coeur','lune','eclair','fleur','losange'];
+  const SIZES   = ['petit','moyen','grand'];
+  const STYLES  = ['plein','contour','raye','pointille'];
+  const LABEL = {
+    shape:'forme', color:'couleur', symbol:'symbole', size:'taille', style:'style', count:'nombre',
+    triangle:'triangle', carre:'carré', pentagone:'pentagone', hexagone:'hexagone',
+    octogone:'octogone', cercle:'cercle', rouge:'rouge', bleu:'bleu', vert:'vert',
+    jaune:'jaune', violet:'violet', orange:'orange', etoile:'étoile', coeur:'cœur',
+    lune:'lune', eclair:'éclair', fleur:'fleur', losange:'losange', petit:'petit',
+    moyen:'moyen', grand:'grand', plein:'plein', contour:'contour', raye:'rayé',
+    pointille:'pointillé'
+  };
+  const sidesOf = it => SHAPES.find(s=>s.id===it.shape).sides; // cercle = 0 côté
+  const SIZE_ORD = {petit:0, moyen:1, grand:2};
+
+  // ---------- Niveaux ----------
+  const LEVELS = [
+    {name:'0 · Tutoriel',             dims:{shape:2,color:2},                                tiers:[0]},
+    {name:'1 · Premiers motifs',      dims:{shape:3,color:3},                                tiers:[0]},
+    {name:'2 · La mémoire courte',    dims:{shape:4,color:4},                                tiers:[1]},
+    {name:'3 · Trois dimensions',     dims:{shape:4,color:4,size:3},                         tiers:[0,1]},
+    {name:'4 · Les symboles',         dims:{shape:5,color:5,size:3,symbol:4},                tiers:[1,2]},
+    {name:'5 · La numération',        dims:{shape:5,color:5,size:3,symbol:4,count:6},        tiers:[2]},
+    {name:'6 · Le grand style',       dims:{shape:6,color:6,size:3,symbol:6,style:4,count:9},tiers:[3]},
+    {name:'7 · Combinatoire',         dims:{shape:6,color:6,size:3,symbol:6,style:4,count:9},tiers:[3,4]},
+    {name:'8 · Conditionnelles',      dims:{shape:6,color:6,size:3,symbol:6,style:4,count:9},tiers:[4]},
+    {name:'9 · Maître de l’induction',dims:{shape:6,color:6,size:3,symbol:6,style:4,count:9},tiers:[4,5]},
+  ];
+
+  function makeSpace(dims){
+    const sp = {};
+    sp.shape = SHAPES.slice(0,dims.shape);
+    sp.color = COLORS.slice(0,dims.color);
+    if(dims.symbol) sp.symbol = SYMBOLS.slice(0,dims.symbol);
+    if(dims.size)   sp.size   = SIZES.slice(0,dims.size);
+    if(dims.style)  sp.style  = STYLES.slice(0,dims.style);
+    if(dims.count)  sp.count  = dims.count; // 1..count
+    return sp;
+  }
+  const catDims = sp => ['shape','color','symbol','size','style'].filter(d=>sp[d]&&sp[d].length>=2);
+  const valId = (d,v)=> d==='shape' ? v.id : v;
+  const valsOf = (sp,d)=> sp[d].map(v=>valId(d,v));
+
+  function randItem(sp,rng){
+    const it = {shape:pick(rng,sp.shape).id, color:pick(rng,sp.color)};
+    it.symbol = sp.symbol ? pick(rng,sp.symbol) : null;
+    it.size   = sp.size   ? pick(rng,sp.size)   : null;
+    it.style  = sp.style  ? pick(rng,sp.style)  : null;
+    it.count  = sp.count  ? irange(rng,1,sp.count) : null;
+    return it;
+  }
+
+  // ---------- Conditions simples ----------
+  function makeCond(sp,rng){
+    const kinds=[];
+    const dims=catDims(sp);
+    if(dims.length) kinds.push('attrEq','attrEq');
+    if(dims.some(d=>valsOf(sp,d).length>=3)) kinds.push('attrIn');
+    if(sp.count){ kinds.push('countParity'); if(sp.count>=4) kinds.push('countCmp'); if(sp.count>=6) kinds.push('countMult3'); }
+    if(sp.shape.length>=3) kinds.push('sidesParity');
+    const k=pick(rng,kinds);
+    if(k==='attrEq'){
+      const d=pick(rng,dims), v=pick(rng,valsOf(sp,d));
+      return {desc:`sa ${LABEL[d]} est « ${LABEL[v]} »`, f:it=>it[d]===v};
+    }
+    if(k==='attrIn'){
+      const d=pick(rng,dims.filter(d=>valsOf(sp,d).length>=3));
+      const vs=valsOf(sp,d).slice(); const v1=vs.splice(Math.floor(rng()*vs.length),1)[0];
+      const v2=vs[Math.floor(rng()*vs.length)];
+      return {desc:`sa ${LABEL[d]} est « ${LABEL[v1]} » ou « ${LABEL[v2]} »`, f:it=>it[d]===v1||it[d]===v2};
+    }
+    if(k==='countParity'){
+      const par=irange(rng,0,1);
+      return {desc:`son nombre de symboles est ${par? 'impair':'pair'}`, f:it=>it.count%2===par};
+    }
+    if(k==='countCmp'){
+      const kk=irange(rng,2,sp.count-1), ge=rng()<.5;
+      return {desc:`son nombre de symboles est ${ge?'≥':'<'} ${kk}`, f:it=> ge? it.count>=kk : it.count<kk};
+    }
+    if(k==='countMult3'){
+      return {desc:`son nombre de symboles est un multiple de 3`, f:it=>it.count%3===0};
+    }
+    const par=irange(rng,0,1);
+    return {desc:`son nombre de côtés est ${par?'impair':'pair'} (cercle = 0 côté)`, f:it=>sidesOf(it)%2===par};
+  }
+
+  function makeRel(sp,rng){
+    const kinds=[];
+    catDims(sp).forEach(d=>{ kinds.push({t:'same',d}); kinds.push({t:'diff',d}); });
+    const k=pick(rng,kinds);
+    if(k.t==='same') return {desc:`sa ${LABEL[k.d]} est la même que celle de l'item précédent`, f:(it,p)=>it[k.d]===p[k.d]};
+    return {desc:`sa ${LABEL[k.d]} est différente de celle de l'item précédent`, f:(it,p)=>it[k.d]!==p[k.d]};
+  }
+
+  // ---------- Gabarits de règles par palier ----------
+  const TEMPLATES = [
+    {tier:0, make:(sp,rng)=>{ const c=makeCond(sp,rng);
+      return {desc:`Chaque item est accepté si ${c.desc}.`, test:it=>c.f(it)}; }},
+    {tier:1, make:(sp,rng)=>{ const r=makeRel(sp,rng);
+      return {desc:`Un item est accepté si ${r.desc}. (Le tout premier item est toujours accepté.)`,
+              test:(it,p)=> p==null || r.f(it,p)}; }},
+    {tier:2, make:(sp,rng)=>{
+      const opts=['sidesParityAlt'];
+      if(sp.count){ opts.push('countParityAlt','countStep'); }
+      if(sp.size && sp.size.length===3) opts.push('sizeCycle');
+      const k=pick(rng,opts);
+      if(k==='countParityAlt') return {desc:`La parité du nombre de symboles doit changer à chaque item (pair, impair, pair…).`,
+        test:(it,p)=> p==null || (it.count%2)!==(p.count%2)};
+      if(k==='countStep') return {desc:`Le nombre de symboles doit changer d'exactement 1 par rapport à l'item précédent.`,
+        test:(it,p)=> p==null || Math.abs(it.count-p.count)===1};
+      if(k==='sizeCycle') return {desc:`La taille doit monter d'un cran à chaque item (petit→moyen→grand→petit…).`,
+        test:(it,p)=> p==null || SIZE_ORD[it.size]===(SIZE_ORD[p.size]+1)%3};
+      return {desc:`La parité du nombre de côtés doit changer à chaque item (cercle = 0 côté).`,
+        test:(it,p)=> p==null || (sidesOf(it)%2)!==(sidesOf(p)%2)};
+    }},
+    {tier:3, make:(sp,rng)=>{
+      const mode=pick(rng,['and','or','condrel']);
+      if(mode==='condrel'){
+        const c=makeCond(sp,rng), r=makeRel(sp,rng);
+        return {desc:`Un item est accepté si ${c.desc} ET si ${r.desc}.`,
+                test:(it,p)=> c.f(it) && (p==null || r.f(it,p))};
+      }
+      let c1=makeCond(sp,rng), c2=makeCond(sp,rng), guard=0;
+      while(c2.desc===c1.desc && guard++<20) c2=makeCond(sp,rng);
+      if(mode==='and') return {desc:`Un item est accepté si ${c1.desc} ET ${c2.desc}.`, test:it=>c1.f(it)&&c2.f(it)};
+      return {desc:`Un item est accepté si ${c1.desc} OU ${c2.desc}.`, test:it=>c1.f(it)||c2.f(it)};
+    }},
+    {tier:4, make:(sp,rng)=>{
+      const mode=pick(rng,['ifelse','xor','prev2']);
+      if(mode==='xor'){
+        let c1=makeCond(sp,rng), c2=makeCond(sp,rng), guard=0;
+        while(c2.desc===c1.desc && guard++<20) c2=makeCond(sp,rng);
+        return {desc:`Un item est accepté si EXACTEMENT UNE des deux conditions est vraie : (1) ${c1.desc} ; (2) ${c2.desc}.`,
+                test:it=> c1.f(it)!==c2.f(it)};
+      }
+      if(mode==='prev2'){
+        const d=pick(rng,catDims(sp));
+        return {desc:`Un item doit avoir la même ${LABEL[d]} que l'avant-dernier item accepté. (Les deux premiers items sont libres.)`,
+                test:(it,p,pp)=> pp==null || it[d]===pp[d]};
+      }
+      const a=makeCond(sp,rng), b=makeCond(sp,rng), c=makeCond(sp,rng);
+      return {desc:`SI l'item précédent vérifiait « ${a.desc} », ALORS le nouvel item doit vérifier « ${b.desc} » ; SINON il doit vérifier « ${c.desc} ». (Premier item libre.)`,
+              test:(it,p)=> p==null || (a.f(p)? b.f(it) : c.f(it))};
+    }},
+    {tier:5, make:(sp,rng)=>{
+      const opts=['exactlyOne']; if(sp.count){opts.push('sumParity','countSidesParity');}
+      const k=pick(rng,opts);
+      if(k==='sumParity'){ const par=irange(rng,0,1);
+        return {desc:`La somme (nombre de symboles de l'item + celui du précédent) doit être ${par?'impaire':'paire'}. (Premier item libre.)`,
+                test:(it,p)=> p==null || (it.count+p.count)%2===par};
+      }
+      if(k==='countSidesParity'){
+        return {desc:`Le nombre de symboles doit avoir la même parité que le nombre de côtés (cercle = 0 côté).`,
+                test:it=> (it.count%2)===(sidesOf(it)%2)};
+      }
+      const dims=catDims(sp);
+      return {desc:`Un item doit partager EXACTEMENT UNE valeur d'attribut (parmi : ${dims.map(d=>LABEL[d]).join(', ')}) avec l'item précédent. (Premier item libre.)`,
+              test:(it,p)=> p==null || dims.filter(d=>it[d]===p[d]).length===1};
+    }},
+  ];
+
+  // ---------- Équilibrage ----------
+  function acceptRatio(rule,sp,rng,n){
+    let acc=[], ok=0;
+    for(let i=0;i<n;i++){
+      const it=randItem(sp,rng);
+      const p=acc[acc.length-1]||null, pp=acc[acc.length-2]||null;
+      if(rule.test(it,p,pp)){ ok++; acc.push(it); if(acc.length>4) acc=acc.slice(-2); }
+    }
+    return ok/n;
+  }
+  function makeRule(level,rng){
+    const lv=LEVELS[level], sp=makeSpace(lv.dims);
+    const cands=TEMPLATES.filter(t=>lv.tiers.includes(t.tier));
+    for(let tries=0;tries<80;tries++){
+      const rule=pick(rng,cands).make(sp,rng);
+      const r=acceptRatio(rule,sp,rng,300);
+      const lo=lv.tiers.some(t=>t>=4)?0.08:0.12, hi=1-lo;
+      if(r>=lo && r<=hi) return rule;
+    }
+    return TEMPLATES[0].make(sp,rng);
+  }
+
+  // ---------- Partie ----------
+  function validateSpec(sp,spec){
+    const it={};
+    for(const d of ['shape','color','symbol','size','style']){
+      if(sp[d]){ const vs=valsOf(sp,d);
+        if(!vs.includes(spec[d])) throw new Error(`Paramètre "${d}" invalide ou manquant. Valeurs possibles : ${vs.join(', ')}`);
+        it[d]=spec[d];
+      } else it[d]=null;
+    }
+    if(sp.count){ const n=Number(spec.count);
+      if(!Number.isInteger(n)||n<1||n>sp.count) throw new Error(`"count" doit être un entier entre 1 et ${sp.count}`);
+      it.count=n;
+    } else it.count=null;
+    return it;
+  }
+  function normProb(p){
+    if(p==null) return 0.5; // pas de pari annoncé = incertitude totale
+    if(typeof p==='object' && p) p=p.p;
+    p=Number(p);
+    if(!Number.isFinite(p)||p<0||p>1) throw new Error('La probabilité du pari doit être un nombre entre 0 et 1.');
+    return p;
+  }
+
+  function newGame(level=0, seed=null){
+    level=Math.max(0,Math.min(LEVELS.length-1,level|0));
+    const rng=makeRng(seed);
+    const lv=LEVELS[level], sp=makeSpace(lv.dims);
+    const rule=makeRule(level,rng);            // ← la règle vit UNIQUEMENT dans cette closure
+    let accepted=[], rejected=[], moves=0, combo=0, bestCombo=0;
+    let brierSum=0, revealed=false;
+
+    function ctx(){ return [accepted[accepted.length-1]||null, accepted[accepted.length-2]||null]; }
+
+    function getState(){
+      return {
+        level, levelName:lv.name, dims:{...lv.dims},
+        params:{
+          shape:sp.shape.map(s=>s.id), color:[...sp.color],
+          symbol:sp.symbol?[...sp.symbol]:null, size:sp.size?[...sp.size]:null,
+          style:sp.style?[...sp.style]:null, count:sp.count||null
+        },
+        accepted:accepted.map(a=>({...a})),
+        rejected:rejected.map(r=>({item:{...r.item}, afterIndex:r.afterIndex})),
+        moves, combo, bestCombo,
+        // LE score : Brier total / nombre de cartes posées (0 = prophète, 0.25 = hasard, plus bas = mieux)
+        score: moves? brierSum/moves : null,
+        brierSum,
+        revealed,
+        rule: revealed? rule.desc : null   // révélée uniquement via reveal(), une seule fois
+      };
+    }
+    function play(spec, prob=null){
+      if(revealed) throw new Error('La règle a été révélée — ce niveau est terminé. Juge ta prédiction, ou lance newGame().');
+      prob=normProb(prob);
+      const it=validateSpec(sp,spec);
+      const [p,pp]=ctx();
+      const ok=!!rule.test(it,p,pp);
+      moves++;
+      if(ok) accepted.push(it);
+      else rejected.push({item:it, afterIndex:accepted.length-1});
+      const y=ok?1:0, brier=(prob-y)*(prob-y);
+      brierSum+=brier;
+      const good = brier < 0.25-1e-12;         // meilleur que le hasard
+      const neutral = Math.abs(brier-0.25)<=1e-12;
+      combo = good? combo+1 : 0;
+      bestCombo=Math.max(bestCombo,combo);
+      const bet={p:prob, outcome:y, brier, good, neutral};
+      return {accepted:ok, item:{...it}, bet, state:getState()};
+    }
+    function reveal(){
+      if(revealed) throw new Error('La règle a déjà été révélée — une seule soumission par niveau !');
+      revealed=true;
+      return {rule:rule.desc, state:getState()};
+    }
+    return {getState, play, reveal, levelInfo:()=>({...lv})};
+  }
+
+  return {
+    LEVELS, SHAPES, COLORS, SYMBOLS, SIZES, STYLES, LABEL, sidesOf,
+    levels:()=>LEVELS.map((l,i)=>({index:i,name:l.name,dims:{...l.dims},tiers:[...l.tiers]})),
+    newGame
+  };
+})();
+/*ENGINE-END*/
+</script>
+<script>
+/* =================== SFX — bruitages synthétisés façon animé =================== */
+const SFX = (() => {
+  let ac=null, muted=false;
+  const ctx=()=>{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac; };
+  function tone({f=880,f2=null,t=0,dur=.12,type='sine',vol=.2,glide=false}){
+    if(muted) return; const a=ctx(), now=a.currentTime+t;
+    const o=a.createOscillator(), g=a.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,now);
+    if(f2) o.frequency[glide?'linearRampToValueAtTime':'setValueAtTime'](f2,now+dur*.9);
+    g.gain.setValueAtTime(0,now);
+    g.gain.linearRampToValueAtTime(vol,now+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,now+dur);
+    o.connect(g).connect(a.destination); o.start(now); o.stop(now+dur+.02);
+  }
+  function noise({t=0,dur=.15,vol=.15,hp=2000,lp=null}){
+    if(muted) return; const a=ctx(), now=a.currentTime+t;
+    const len=a.sampleRate*dur, buf=a.createBuffer(1,len,a.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    const s=a.createBufferSource(); s.buffer=buf;
+    let node=s;
+    const f=a.createBiquadFilter(); f.type=lp?'lowpass':'highpass'; f.frequency.value=lp||hp;
+    node.connect(f); node=f;
+    const g=a.createGain(); g.gain.value=vol;
+    node.connect(g).connect(a.destination); s.start(now);
+  }
+  return {
+    isMuted:()=>muted,
+    toggle(){ muted=!muted; return muted; },
+    unlock(){ try{ctx();}catch(e){} },
+    click(){ tone({f:1400,dur:.05,type:'triangle',vol:.1}); },
+    goodBet(m,combo=1){                        // m∈[0,1] : qualité de la prédiction — "pin-pon ✨"
+      const base=(620+m*180)*Math.pow(1.045,Math.min(combo,14));
+      tone({f:base,dur:.09,type:'triangle',vol:.16+m*.12});
+      tone({f:base*1.5,t:.07,dur:.14,type:'triangle',vol:.16+m*.12});
+      noise({t:.05,dur:.14+m*.15,vol:.04+m*.05,hp:6000});
+      if(m>.5) tone({f:base*2,t:.13,dur:.22,type:'sine',vol:.1});
+    },
+    badBet(m){                                  // m∈[0,1] : gravité — "bu-buuu" + impact proportionnel
+      tone({f:200-60*m,f2:90-30*m,dur:.24+.3*m,type:'sawtooth',vol:.12+.14*m,glide:true});
+      tone({f:150,t:.02,dur:.16+.2*m,type:'square',vol:.05+.09*m});
+      noise({dur:.1+.18*m,vol:.08+.14*m,lp:900});
+    },
+    neutral(){ tone({f:500,dur:.06,type:'sine',vol:.07}); },
+    combo(){ [1046,1318,1568,2093].forEach((f,i)=>tone({f,t:i*.055,dur:.12,type:'triangle',vol:.16}));
+      noise({t:.1,dur:.3,vol:.05,hp:7000}); },
+    reveal(){ [523,622,784,1046].forEach((f,i)=>tone({f,t:i*.1,dur:.35,type:'sine',vol:.12})); },
+    fail(){ tone({f:311,f2:155,dur:.5,type:'sawtooth',vol:.15,glide:true}); tone({f:233,t:.1,dur:.4,type:'square',vol:.08}); },
+    fanfare(){
+      const seq=[[523,0],[659,.12],[784,.24],[1046,.36],[784,.5],[1046,.62],[1318,.78]];
+      seq.forEach(([f,t])=>{ tone({f,t,dur:.22,type:'square',vol:.1}); tone({f:f*2,t,dur:.22,type:'triangle',vol:.12}); });
+      noise({t:.36,dur:.5,vol:.1,hp:5000}); noise({t:.78,dur:.8,vol:.12,hp:4000});
+    },
+    // --- sons d'intro ---
+    rumble(dur=6){ tone({f:38,dur,type:'sawtooth',vol:.07}); tone({f:45,dur,type:'sawtooth',vol:.06});
+      noise({dur,vol:.045,lp:150}); },
+    riser(dur=2){ tone({f:80,f2:950,dur,type:'sawtooth',vol:.09,glide:true});
+      tone({f:160,f2:1900,dur,type:'sine',vol:.06,glide:true}); noise({t:dur*.5,dur:dur*.5,vol:.05,hp:3000}); },
+    boom(){ tone({f:64,f2:28,dur:.9,type:'sine',vol:.5,glide:true}); noise({dur:.5,vol:.3,lp:400});
+      noise({t:.05,dur:1.1,vol:.12,hp:4500}); }
+  };
+})();
+
+/* =================== FX visuels =================== */
+const FX = (() => {
+  const cv=document.getElementById('fxCanvas'), cx=cv.getContext('2d');
+  let parts=[], raf=null;
+  function resize(){ cv.width=innerWidth; cv.height=innerHeight; }
+  addEventListener('resize',resize); resize();
+  const COLS=['#ffd32a','#ff4757','#2ed573','#3d8bff','#a55eea','#ff7f2a','#ffffff'];
+  function burst(x,y,n=26,power=7){
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=(0.35+Math.random())*power;
+      parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-3,g:.22,r:3+Math.random()*4,
+        c:COLS[(Math.random()*COLS.length)|0], life:1, spin:Math.random()*6, shape:Math.random()<.5});
+    }
+    if(!raf) raf=requestAnimationFrame(step);
+  }
+  function bigParty(){ for(let k=0;k<6;k++) setTimeout(()=>burst(Math.random()*innerWidth, innerHeight*0.25+Math.random()*innerHeight*0.3, 40, 9), k*180); }
+  function step(){
+    cx.clearRect(0,0,cv.width,cv.height);
+    parts=parts.filter(p=>p.life>0);
+    for(const p of parts){
+      p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.985; p.life-=.016; p.spin+=.2;
+      cx.globalAlpha=Math.max(p.life,0); cx.fillStyle=p.c;
+      cx.save(); cx.translate(p.x,p.y); cx.rotate(p.spin);
+      if(p.shape) cx.fillRect(-p.r,-p.r/2,p.r*2,p.r);
+      else { cx.beginPath(); cx.arc(0,0,p.r,0,7); cx.fill(); }
+      cx.restore();
+    }
+    cx.globalAlpha=1;
+    raf = parts.length? requestAnimationFrame(step) : null;
+  }
+  function floater(x,y,txt,color,size){
+    const el=document.createElement('div'); el.className='floater'; el.textContent=txt;
+    el.style.left=(x-30)+'px'; el.style.top=(y-20)+'px'; el.style.color=color;
+    if(size) el.style.fontSize=size+'px';
+    document.body.appendChild(el); setTimeout(()=>el.remove(),1200);
+  }
+  function shake(amp=1){ // amplitude ∝ Brier perdu
+    document.body.style.setProperty('--amp', String(Math.max(.2,Math.min(3,amp))));
+    document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
+  }
+  function glow(kind){ // 'good' | 'bad'
+    const g=document.getElementById('glowFrame');
+    g.classList.remove('flash-good','flash-bad'); void g.offsetWidth;
+    g.classList.add(kind==='good'?'flash-good':'flash-bad');
+  }
+  function comboBurst(n){
+    const el=document.getElementById('comboBurst'); el.textContent=`CALIBRÉ ×${n} !!`;
+    el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  }
+  function rush(on){ document.body.classList.toggle('rush',on); }
+  return {burst,bigParty,floater,shake,glow,comboBurst,rush};
+})();
+
+/* =================== Engrenages décoratifs =================== */
+(() => {
+  function gearSVG(R,teeth,color,hole=.42){
+    const r=R*.82, steps=teeth*4; let d='';
+    for(let i=0;i<=steps;i++){ const a=i/steps*2*Math.PI;
+      const rad=(i%4<2)? R : r;
+      d+=(i?'L':'M')+(Math.cos(a)*rad).toFixed(1)+','+(Math.sin(a)*rad).toFixed(1)+' ';
+    }
+    d+='Z M'+(R*hole).toFixed(1)+',0 A'+(R*hole).toFixed(1)+','+(R*hole).toFixed(1)+' 0 1,0 '+(-R*hole).toFixed(1)+',0 '
+      +'A'+(R*hole).toFixed(1)+','+(R*hole).toFixed(1)+' 0 1,0 '+(R*hole).toFixed(1)+',0 Z';
+    const s=R+6;
+    return `<svg width="${2*s}" height="${2*s}" viewBox="${-s} ${-s} ${2*s} ${2*s}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${d}" fill="${color}" fill-rule="evenodd"/></svg>`;
+  }
+  const host=document.getElementById('gears');
+  const defs=[
+    {x:'82%', y:'-90px',  R:150, teeth:12, d:'22s', o:.10, rev:false, c:'#8b90c0'},
+    {x:'-70px', y:'62%',  R:110, teeth:10, d:'15s', o:.09, rev:true,  c:'#ffd32a'},
+    {x:'93%', y:'70%',    R:64,  teeth:8,  d:'9s',  o:.12, rev:false, c:'#a55eea'},
+    {x:'30%', y:'-60px',  R:52,  teeth:8,  d:'11s', o:.07, rev:true,  c:'#8b90c0'},
+  ];
+  host.innerHTML=defs.map(g=>`<div class="gear ${g.rev?'rev':''}" style="left:${g.x};top:${g.y};--d:${g.d};--o:${g.o}">${gearSVG(g.R,g.teeth,g.c)}</div>`).join('');
+  // engrenages de l'intro
+  document.getElementById('introGearL').innerHTML=gearSVG(190,14,'#ffd32a');
+  document.getElementById('introGearR').innerHTML=gearSVG(150,11,'#a55eea');
+})();
+</script>
+<script>
+/* =================== Rendu SVG des items =================== */
+const Render = (() => {
+  const HEX={rouge:'#ff4757',bleu:'#3d8bff',vert:'#2ed573',jaune:'#ffd32a',violet:'#a55eea',orange:'#ff7f2a'};
+  function shade(hex,f){
+    const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255;
+    const m=(v,t)=>Math.round(v*(1-f)+t*f);
+    return `rgb(${m(r,16)},${m(g,18)},${m(b,43)})`;
+  }
+  const defs=document.getElementById('patternDefs');
+  defs.innerHTML=Object.entries(HEX).map(([id,hex])=>`
+    <pattern id="pat-raye-${id}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="${shade(hex,.72)}"/><rect width="3.4" height="7" fill="${hex}"/>
+    </pattern>
+    <pattern id="pat-pointille-${id}" width="9" height="9" patternUnits="userSpaceOnUse">
+      <rect width="9" height="9" fill="${shade(hex,.72)}"/><circle cx="4.5" cy="4.5" r="2.1" fill="${hex}"/>
+    </pattern>`).join('');
+  const SYM={
+    etoile:'M0,-10 L2.9,-3.6 9.8,-3.2 4.6,1.5 6.2,8.3 0,4.6 -6.2,8.3 -4.6,1.5 -9.8,-3.2 -2.9,-3.6 Z',
+    coeur:'M0,6.5 C-8.5,-1 -5.5,-9.5 0,-4.5 C5.5,-9.5 8.5,-1 0,6.5 Z',
+    lune:'M3.5,-8.5 A9,9 0 1,0 3.5,8.5 A6.8,6.8 0 1,1 3.5,-8.5 Z',
+    eclair:'M2.5,-10 L-6,1.5 L-1,1.5 L-2.5,10 L6,-2.5 L1,-2.5 Z',
+    losange:'M0,-9.5 L6.5,0 L0,9.5 L-6.5,0 Z',
+    fleur:null
+  };
+  function symbolG(sym,x,y,k,color){
+    if(sym==='fleur'){
+      let c=''; for(let i=0;i<5;i++){ const a=-Math.PI/2+i*2*Math.PI/5;
+        c+=`<circle cx="${(Math.cos(a)*5).toFixed(2)}" cy="${(Math.sin(a)*5).toFixed(2)}" r="3.4" fill="${color}"/>`; }
+      c+=`<circle r="2.6" fill="#1a1e3e"/>`;
+      return `<g transform="translate(${x},${y}) scale(${k})">${c}</g>`;
+    }
+    return `<g transform="translate(${x},${y}) scale(${k})"><path d="${SYM[sym]}" fill="${color}"/></g>`;
+  }
+  function polyPoints(sides,cx,cy,r){
+    const pts=[]; for(let i=0;i<sides;i++){ const a=-Math.PI/2+i*2*Math.PI/sides;
+      pts.push(`${(cx+Math.cos(a)*r).toFixed(1)},${(cy+Math.sin(a)*r).toFixed(1)}`); }
+    return pts.join(' ');
+  }
+  function itemSVG(item, w=86){
+    const hex=HEX[item.color];
+    const r=item.size? {petit:15,moyen:23,grand:32}[item.size] : 25;
+    const style=item.style||'plein';
+    let fill=hex, stroke='#0b0d20', sw=2;
+    if(style==='contour'){ fill='none'; stroke=hex; sw=4; }
+    if(style==='raye'){ fill=`url(#pat-raye-${item.color})`; stroke=hex; sw=1.5; }
+    if(style==='pointille'){ fill=`url(#pat-pointille-${item.color})`; stroke=hex; sw=1.5; }
+    const sides=Engine.sidesOf(item);
+    const shapeSvg = sides===0
+      ? `<circle cx="50" cy="52" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`
+      : `<polygon points="${polyPoints(sides,50,52,r+2)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    let syms='', badge='';
+    if(item.symbol){
+      const n=item.count||1, k=.62, sc='#f2f4ff';
+      for(let i=0;i<n;i++){
+        const row=Math.floor(i/5), inRow=Math.min(n-row*5,5), idx=i%5;
+        const x=50-(inRow-1)*8.2+idx*16.4, y=104+row*14.5;
+        syms+=symbolG(item.symbol,x,y,k,sc);
+      }
+      if(item.count!=null) badge=`<text x="10" y="20" font-size="15" font-weight="900" fill="#8b90c0" font-family="inherit">${item.count}</text>`;
+    }
+    return `<svg width="${w}" height="${w*1.3}" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1.5" y="1.5" width="97" height="127" rx="11" fill="#1a1e3e" stroke="#343a6e" stroke-width="2"/>
+      ${shapeSvg}${syms}${badge}</svg>`;
+  }
+  return {itemSVG};
+})();
+
+/* =================== UI + API window.arena =================== */
+(() => {
+  const $=id=>document.getElementById(id);
+  const L=Engine.LABEL;
+  let game=null, state=null, spec={}, listeners=[];
+
+  const HELP=`ELEUSIS ARENA — API pour algorithmes (window.arena)
+=====================================================
+But : PRÉDIRE la règle secrète, pas poser des cartes acceptées.
+Un item = {shape, color, symbol?, size?, style?, count?} (dimensions actives :
+voir getParams()). Certaines règles dépendent des items PRÉCÉDEMMENT ACCEPTÉS
+(les rejetés ne changent pas la séquence). Premier item : toujours accepté par
+les règles relationnelles. "cercle" compte 0 côté.
+
+LE SCORE = Brier moyen par carte posée (state.score) :
+  chaque play() est accompagné d'un pari p = P(accepté) ∈ [0,1].
+  Brier de la carte = (p − verdict)², verdict ∈ {0,1}.
+  score = Σ brier / nombre de cartes. 0 = prophète, 0.25 = hasard (p=0.5),
+  → PLUS BAS = MIEUX. Sans pari annoncé, p = 0.5 (hasard).
+  Un rejet BIEN PRÉDIT (p<0.5) est une bonne nouvelle ; seule une prédiction
+  ratée (brier > 0.25) est punie — proportionnellement au Brier perdu.
+
+Fin de niveau : arena.reveal() — UNE SEULE FOIS par niveau ! La règle est
+dévoilée, plus aucun play() possible. Puis arena.judge(bool) :
+  judge(true)  = « j'avais raison » → niveau suivant
+  judge(false) = « raté »           → on reste au même niveau (nouvelle règle)
+(Système déclaratif : c'est au harnais/joueur de comparer son hypothèse.)
+
+Méthodes :
+  arena.levels()               → liste des niveaux (dims, paliers de règles)
+  arena.newGame(level, seed?)  → nouvelle partie (seed : reproductible)
+  arena.getParams()            → valeurs possibles par dimension
+  arena.getState()             → état JSON complet (score = Brier moyen ;
+                                 rule = null tant que non révélée)
+  arena.play(spec, p?)         → {accepted, item, bet:{p,outcome,brier,good}, state}
+      ex : arena.play({shape:'carre',color:'rouge',symbol:'etoile',
+                       size:'grand',style:'raye',count:4}, 0.82)
+  arena.reveal()               → {rule, state} — une seule soumission !
+  arena.judge(correct)         → state (niveau suivant si true, sinon même niveau)
+  arena.onEvent(cb)            → cb({type:'play'|'reveal'|'judge'|'newGame',...})
+  arena.help()                 → ce texte
+
+L'état est publié dans <script id="arena-state" type="application/json"> ;
+chaque carte porte data-item / data-verdict / data-bet.
+La règle secrète vit dans une closure : pas lisible via DOM, window ou état.
+
+MUSIQUE : placer intro.mp3 (intro) et music.mp3 (boucle de fond) à côté du
+fichier HTML — chargées automatiquement si présentes. Timeline précise de
+l'intro : window.INTRO_TIMELINE.`;
+
+  function emit(ev){ listeners.forEach(cb=>{ try{cb(ev);}catch(e){} }); }
+  function publishState(){
+    state=game.getState();
+    $('arena-state').textContent=JSON.stringify(state);
+    return state;
+  }
+
+  window.arena={
+    help:()=>HELP,
+    levels:()=>Engine.levels(),
+    newGame:(level=0,seed=null)=>{ startGame(level,seed); return publishState(); },
+    getParams:()=>game.getState().params,
+    getState:()=>publishState(),
+    play:(s,p)=>{ const r=game.play(s,p); afterPlay(r); return r; },
+    reveal:()=>{ const r=game.reveal(); afterReveal(r); return r; },
+    judge:(correct)=>{ return judge(!!correct); },
+    onEvent:(cb)=>{ listeners.push(cb); return ()=>{listeners=listeners.filter(x=>x!==cb);} },
+  };
+
+  /* ---------- HUD ---------- */
+  function refreshHud(){
+    $('levelName').textContent=state.levelName;
+    $('movesVal').textContent=state.moves;
+    const cv=$('comboVal'); cv.textContent='×'+state.combo; cv.classList.toggle('hot',state.combo>=3);
+    const bv=$('brierVal');
+    bv.textContent = state.moves? state.score.toFixed(3) : '—';
+    bv.classList.toggle('good', state.moves>0 && state.score<0.15);
+    bv.classList.toggle('bad',  state.moves>0 && state.score>0.30);
+    FX.rush(state.combo>=4);
+  }
+
+  /* ---------- Timeline ---------- */
+  function cardEl(item,verdict,bet,w=86){
+    const d=document.createElement('div');
+    d.className='card '+(verdict?'ok':'ko');
+    d.innerHTML=Render.itemSVG(item,w);
+    const tag=document.createElement('span');
+    tag.className='betTag '+(bet.neutral?'n':bet.good?'g':'b');
+    tag.textContent=Math.round(bet.p*100)+'%';
+    tag.title='Pari '+Math.round(bet.p*100)+'% · Brier '+bet.brier.toFixed(2);
+    d.appendChild(tag);
+    d.dataset.item=JSON.stringify(item);
+    d.dataset.verdict=verdict?'accepted':'rejected';
+    d.dataset.bet=JSON.stringify({p:bet.p,brier:+bet.brier.toFixed(4)});
+    return d;
+  }
+  function newCol(){ const c=document.createElement('div'); c.className='tlcol';
+    c.innerHTML='<div class="tlAccept"></div><div class="tlRejects"></div>';
+    $('timeline').appendChild(c); return c; }
+  function resetTimeline(){
+    $('timeline').innerHTML='';
+    const c=newCol(); c.querySelector('.tlAccept').innerHTML='<div class="startMark">DÉPART</div>';
+  }
+  function addToTimeline(item,ok,bet){
+    const tl=$('timeline');
+    let col;
+    if(ok){ col=newCol(); col.querySelector('.tlAccept').appendChild(cardEl(item,true,bet)); }
+    else { col=tl.lastElementChild; col.querySelector('.tlRejects').appendChild(cardEl(item,false,bet,70)); }
+    tl.scrollLeft=tl.scrollWidth;
+    return col;
+  }
+
+  /* ---------- Constructeur ---------- */
+  function buildDims(){
+    const p=state.params, box=$('dims'); box.innerHTML=''; spec={};
+    const rows=[['shape',p.shape],['color',p.color],['symbol',p.symbol],['size',p.size],['style',p.style]];
+    for(const [d,vals] of rows){
+      if(!vals) continue;
+      spec[d]=vals[0];
+      const row=document.createElement('div'); row.className='dimrow';
+      row.innerHTML=`<span class="dimlbl">${L[d]}</span>`;
+      vals.forEach(v=>{
+        const ch=document.createElement('button'); ch.className='chip'; ch.dataset.dim=d; ch.dataset.val=v;
+        ch.innerHTML=(d==='color'?`<span class="dot" style="background:${{rouge:'#ff4757',bleu:'#3d8bff',vert:'#2ed573',jaune:'#ffd32a',violet:'#a55eea',orange:'#ff7f2a'}[v]}"></span>`:'')+L[v];
+        ch.onclick=()=>{ SFX.click(); spec[d]=v;
+          row.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',c===ch)); refreshPreview(); };
+        row.appendChild(ch);
+      });
+      row.querySelector('.chip').classList.add('sel');
+      box.appendChild(row);
+    }
+    if(p.count){
+      spec.count=1;
+      const row=document.createElement('div'); row.className='dimrow';
+      row.innerHTML=`<span class="dimlbl">${L.count}</span>`;
+      for(let n=1;n<=p.count;n++){
+        const ch=document.createElement('button'); ch.className='chip'; ch.textContent=n;
+        ch.onclick=()=>{ SFX.click(); spec.count=n;
+          row.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',c.textContent==String(n))); refreshPreview(); };
+        row.appendChild(ch);
+      }
+      row.querySelector('.chip').classList.add('sel');
+      box.appendChild(row);
+    }
+    refreshPreview();
+  }
+  function specItem(){ const p=state.params;
+    return {shape:spec.shape, color:spec.color, symbol:p.symbol?spec.symbol:null,
+            size:p.size?spec.size:null, style:p.style?spec.style:null, count:p.count?spec.count:null}; }
+  function refreshPreview(){ $('previewCard').innerHTML=Render.itemSVG(specItem(),110); }
+
+  /* ---------- Feedback : le Brier décide, pas le verdict ---------- */
+  function afterPlay(r){
+    publishState(); refreshHud();
+    const col=addToTimeline(r.item,r.accepted,r.bet);
+    const rect=col.getBoundingClientRect();
+    const cx=rect.left+rect.width/2, cy=rect.top+(r.accepted?70:150);
+    const b=r.bet;
+    if(b.neutral){
+      SFX.neutral();
+      FX.floater(cx,cy,'p=50% · brier 0.25','#8b90c0',16);
+    } else if(b.good){
+      const m=(0.25-b.brier)/0.25;                    // 0..1 : qualité
+      SFX.goodBet(m,state.combo);
+      FX.glow('good');
+      FX.burst(cx,cy, Math.round(8+m*30), 5+m*4);
+      FX.floater(cx,cy, (r.accepted?'✔':'✕')+' bien prédit ! brier '+b.brier.toFixed(2), m>.6?'#2ed573':'#a8e6bc', 18+m*12);
+      if(state.combo>=3 && state.combo%3===0){ FX.comboBurst(state.combo); SFX.combo(); }
+    } else {
+      const m=(b.brier-0.25)/0.75;                    // 0..1 : gravité
+      SFX.badBet(m);
+      FX.glow('bad');
+      FX.shake(0.4+m*2.4);                            // screenshake ∝ Brier perdu
+      FX.floater(cx,cy,'💥 brier '+b.brier.toFixed(2),'#ff4757',18+m*14);
+    }
+    emit({type:'play', accepted:r.accepted, item:r.item, bet:{...b}});
+  }
+
+  /* ---------- Révélation (une seule fois) + jugement ---------- */
+  let judgeVeil=null;
+  function afterReveal(r){
+    publishState(); refreshHud();
+    SFX.reveal();
+    emit({type:'reveal', rule:r.rule});
+    $('btnReveal').disabled=true; $('btnReveal').style.opacity=.4;
+    if(judgeVeil) judgeVeil.remove();
+    judgeVeil=document.createElement('div'); judgeVeil.className='modalveil';
+    judgeVeil.innerHTML=`<div class="modal" style="text-align:center">
+      <h2>📜 LA RÈGLE ÉTAIT…</h2>
+      <div id="ruleReveal">${r.rule}</div>
+      <div style="color:var(--dim);font-size:13px;margin-bottom:6px">
+        Brier final : <b style="color:var(--accent)">${state.moves? state.score.toFixed(3):'—'}</b>
+        sur ${state.moves} cartes · Avais-tu percé la règle ?</div>
+      <div class="btnrow" style="justify-content:center">
+        <button class="pbtn gold" id="jYes">🎯 J'AVAIS RAISON !</button>
+        <button class="pbtn danger" id="jNo">💀 ZUT ! RATÉ !</button>
+      </div></div>`;
+    document.body.appendChild(judgeVeil);
+    judgeVeil.querySelector('#jYes').onclick=()=>window.arena.judge(true);
+    judgeVeil.querySelector('#jNo').onclick=()=>window.arena.judge(false);
+  }
+  function judge(correct){
+    if(!state.revealed) throw new Error('Révèle d’abord la règle (arena.reveal()) avant de juger.');
+    if(judgeVeil){ judgeVeil.remove(); judgeVeil=null; }
+    const cur=state.level, last=Engine.levels().length-1;
+    emit({type:'judge', correct, level:cur});
+    if(correct){
+      SFX.fanfare(); FX.bigParty(); FX.glow('good');
+      FX.floater(innerWidth/2, innerHeight/2, cur<last? 'NIVEAU SUIVANT ➔':'⭐ SOMMET ATTEINT ⭐', '#ffd32a', 40);
+      startGame(Math.min(cur+1,last));
+    } else {
+      SFX.fail(); FX.glow('bad'); FX.shake(1.6);
+      FX.floater(innerWidth/2, innerHeight/2, 'MÊME NIVEAU… NOUVELLE RÈGLE', '#ff4757', 30);
+      startGame(cur);
+    }
+    return publishState();
+  }
+
+  /* ---------- Démarrage ---------- */
+  function startGame(level,seed=null){
+    game=Engine.newGame(level,seed);
+    publishState();
+    $('levelSel').value=String(state.level);
+    $('btnReveal').disabled=false; $('btnReveal').style.opacity=1;
+    if(judgeVeil){ judgeVeil.remove(); judgeVeil=null; }
+    resetTimeline(); buildDims(); refreshHud();
+    emit({type:'newGame', level:state.level});
+  }
+  const sel=$('levelSel');
+  Engine.levels().forEach(l=>{ const o=document.createElement('option'); o.value=l.index; o.textContent=l.name; sel.appendChild(o); });
+  sel.onchange=()=>{ SFX.click(); startGame(+sel.value); };
+  $('btnNew').onclick=()=>{ SFX.click(); startGame(state.level); };
+  const betSlider=$('betSlider');
+  betSlider.oninput=()=>{ $('betVal').textContent=betSlider.value+'%'; };
+  $('btnTest').onclick=()=>{ try{ window.arena.play(specItem(), betSlider.value/100); }catch(e){ alert(e.message); } };
+  $('btnReveal').onclick=()=>{
+    if(state.revealed) return;
+    const v=document.createElement('div'); v.className='modalveil';
+    v.innerHTML=`<div class="modal" style="text-align:center"><h2>⚠ RÉVÉLER LA RÈGLE ?</h2>
+      <p style="color:var(--dim)">Une <b>seule</b> soumission par niveau. Après révélation, impossible de
+      tester d'autres items : tu jugeras toi-même si ta prédiction était la bonne.</p>
+      <div class="btnrow" style="justify-content:center">
+        <button class="pbtn ghost" id="rvCancel">Annuler</button>
+        <button class="pbtn gold" id="rvGo">👁 RÉVÉLER</button></div></div>`;
+    document.body.appendChild(v);
+    v.querySelector('#rvCancel').onclick=()=>{ SFX.click(); v.remove(); };
+    v.querySelector('#rvGo').onclick=()=>{ v.remove(); try{ window.arena.reveal(); }catch(e){ alert(e.message); } };
+  };
+  $('btnSound').onclick=()=>{
+    const m=SFX.toggle(); $('btnSound').textContent=m?'🔇':'🔊';
+    const bgm=$('bgm'); if(m) bgm.pause(); else if(bgm.currentSrc && introDone) bgm.play().catch(()=>{});
+  };
+  $('btnHelp').onclick=()=>{
+    const v=document.createElement('div'); v.className='modalveil';
+    v.innerHTML=`<div class="modal"><h2>❓ Comment jouer</h2>
+      <p>Une <b>règle secrète</b> décide quels items rejoignent la séquence. Construis des items,
+      <b>parie</b> ta probabilité qu'ils soient acceptés, et teste. <b>L'objectif n'est pas de poser des
+      cartes acceptées : c'est de prédire.</b> Un rejet annoncé à 10% est une victoire ; une certitude
+      démentie est une claque (et l'écran tremble en proportion).</p>
+      <p>Ton score = <b>Brier moyen par carte</b> : (pari − verdict)², moyenné. 0 = prophète,
+      0.25 = hasard, plus bas = mieux. Quand tu crois tenir la règle, <b>👁 RÉVÉLER LA RÈGLE</b> —
+      une seule fois ! — puis juge toi-même : raison → niveau suivant ; raté → tu restes ici.</p>
+      <h2>🤖 API pour algorithmes</h2><pre>${HELP.replace(/</g,'&lt;')}</pre>
+      <div class="btnrow"><button class="pbtn gold" id="hOk">C'EST PARTI</button></div></div>`;
+    document.body.appendChild(v);
+    v.querySelector('#hOk').onclick=()=>v.remove();
+  };
+  addEventListener('keydown',e=>{ if(e.key==='Enter' && !document.querySelector('.modalveil') && introDone) $('btnTest').click(); });
+
+  startGame(0);
+  console.log('%cELEUSIS ⚡ ARENA','font-size:20px;font-weight:900;color:#ffd32a');
+  console.log('API : arena.help() — score = Brier moyen, révélation unique par niveau.');
+})();
+
+/* =================== INTRO dramatique — timeline précise =================== */
+/* Durées (ms, à partir du CLIC sur la porte d'entrée) :
+     0    départ (intro.mp3 lancé ici s'il existe) + grondement
+     300  ligne 1  « Il existe une Règle. »            (2s d'animation)
+     2300 ligne 2  « Cachée. Silencieuse. Implacable. »
+     4300 ligne 3  « Seuls les esprits calibrés survivront. » + montée sonore (2s)
+     6300 éclair blanc + BOOM
+     6400 logo slam + confettis + engrenages géants
+     7800 tagline « PARIE · PRÉDIS · PERCE LE SECRET »
+     9200 début du fondu de sortie (600 ms)
+     9800 FIN — l'arène est visible, music.mp3 démarre (boucle)
+   Total : 9800 ms. */
+window.INTRO_TIMELINE={total:9800, steps:{start:0, ligne1:300, ligne2:2300, ligne3:4300,
+  riser:4300, flash:6300, logo:6400, tagline:7800, fadeOut:9200, fin:9800}};
+let introDone=false;
+(() => {
+  const intro=document.getElementById('intro'), gate=document.getElementById('introGate'),
+        seq=document.getElementById('introSeq'), im=document.getElementById('introMusic'),
+        bgm=document.getElementById('bgm');
+  im.volume=0.9; bgm.volume=0.55;
+  let timers=[];
+  const at=(t,fn)=>timers.push(setTimeout(fn,t));
+  function finish(){
+    timers.forEach(clearTimeout); timers=[];
+    im.pause();
+    introDone=true;
+    intro.classList.add('fadeout');
+    setTimeout(()=>intro.remove(),650);
+    if(!SFX.isMuted() && bgm.currentSrc) bgm.play().catch(()=>{});
+  }
+  gate.addEventListener('click',()=>{
+    SFX.unlock();
+    gate.classList.add('hidden'); seq.classList.remove('hidden');
+    if(im.currentSrc) im.play().catch(()=>{});               // T = 0 : musique d'intro
+    SFX.rumble(6.2);
+    at(300,  ()=>document.getElementById('il1').classList.add('show'));
+    at(2300, ()=>document.getElementById('il2').classList.add('show'));
+    at(4300, ()=>{ document.getElementById('il3').classList.add('show'); SFX.riser(2); });
+    at(6300, ()=>{ const wf=document.getElementById('whiteflash');
+                   wf.classList.add('go'); SFX.boom(); });
+    at(6400, ()=>{ document.getElementById('introLogo').classList.add('show');
+                   document.getElementById('introGearL').classList.add('show');
+                   document.getElementById('introGearR').classList.add('show');
+                   FX.bigParty(); });
+    at(7800, ()=>document.getElementById('introTag').classList.add('show'));
+    at(9200, ()=>intro.classList.add('fadeout'));
+    at(9800, finish);
+  },{once:true});
+  document.getElementById('introSkip').onclick=(e)=>{ e.stopPropagation(); finish(); };
+})();
+</script>
+</body>
+</html>
