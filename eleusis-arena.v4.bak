@@ -35,16 +35,14 @@ button{font-family:inherit;}
 .gear.rev{animation-direction:reverse;}
 @keyframes gearspin{to{transform:rotate(360deg);}}
 body.rush .gear{animation-duration:calc(var(--d,16s)/5);}
-#glowFrame{position:fixed; inset:0; pointer-events:none; z-index:46;
-  box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);
-  animation:breathe 5.5s ease-in-out infinite;}
-@keyframes breathe{50%{box-shadow:inset 0 0 130px 20px rgba(90,110,255,.33), inset 0 0 300px 70px rgba(255,120,220,.13);}}
-#glowFrame.flash-good{animation:glowGood 1s ease-out;}
-@keyframes glowGood{0%{box-shadow:inset 0 0 170px 45px rgba(46,213,115,.6), inset 0 0 320px 90px rgba(255,211,42,.25);}
-  100%{box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);}}
-#glowFrame.flash-bad{animation:glowBad 1s ease-out;}
-@keyframes glowBad{0%{box-shadow:inset 0 0 190px 60px rgba(255,71,87,.65), inset 0 0 340px 100px rgba(255,40,40,.3);}
-  100%{box-shadow:inset 0 0 90px 12px rgba(90,110,255,.20), inset 0 0 240px 40px rgba(160,80,255,.10);}}
+#glowFrame{position:fixed; inset:0; pointer-events:none; z-index:46;}
+#glowFrame i{position:absolute; inset:0; will-change:opacity;}
+#glowFrame .gB{box-shadow:inset 0 0 110px 16px rgba(90,110,255,.28), inset 0 0 260px 50px rgba(190,90,255,.12); animation:breathe 5.5s ease-in-out infinite;}
+#glowFrame .gG{box-shadow:inset 0 0 170px 45px rgba(46,213,115,.6), inset 0 0 320px 90px rgba(255,211,42,.25); opacity:0;}
+#glowFrame .gR{box-shadow:inset 0 0 190px 60px rgba(255,71,87,.65), inset 0 0 340px 100px rgba(255,40,40,.3); opacity:0;}
+@keyframes breathe{0%,100%{opacity:.75;}50%{opacity:1;}}
+#glowFrame.flash-good .gG, #glowFrame.flash-bad .gR{animation:glowFade 1s ease-out;}
+@keyframes glowFade{from{opacity:1;}to{opacity:0;}}
 
 /* ===== layout ===== */
 #app{position:relative; z-index:2; height:100vh; display:grid; grid-template-rows:auto minmax(0,1fr) auto auto; gap:8px; padding:8px 12px;}
@@ -602,7 +600,7 @@ body.turbo .floater, body.turbo .ring, body.turbo #bubble, body.turbo #dBubble, 
 <svg width="0" height="0" style="position:absolute"><defs id="patternDefs"></defs></svg>
 <div id="bgSymbols"></div>
 <div id="gears"></div>
-<div id="glowFrame"></div>
+<div id="glowFrame"><i class="gB"></i><i class="gG"></i><i class="gR"></i></div>
 <div id="speedlines"></div>
 <canvas id="fxCanvas"></canvas>
 <div id="comboBurst"></div>

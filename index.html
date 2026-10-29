@@ -585,6 +585,23 @@ body.impact #dPlay{filter:invert(1) hue-rotate(180deg) contrast(1.4);}
 .rrules{text-align:left; max-height:30vh; overflow:auto; font-size:13px; line-height:1.45;}
 .rrules div{padding:6px 10px; border-left:4px solid var(--lc); margin:6px 0; background:#0d1029; border-radius:6px;}
 .rrules small{color:var(--dim); letter-spacing:1px;}
+#dsDiffs{display:flex; flex-direction:column; gap:6px;}
+.dsDiff{padding:7px 12px !important; border-width:2px !important;}
+.dsDiff b{font-size:19px !important;}
+.dsDiff p{font-size:11px !important; margin-top:2px !important;}
+.dsDiff .stars{font-size:11px !important; top:9px !important; letter-spacing:0 !important; color:#ffd32a;}
+.dsDiff .lvn{font-size:11px; font-weight:900; color:rgba(255,255,255,.55); margin-right:6px; font-style:normal;}
+#dsRevealHint{font-size:11px; color:var(--dim); line-height:1.45;}
+#dsRevealHint b{color:var(--ink);}
+.lstreak{font-weight:900; color:var(--dim); letter-spacing:1px; display:inline-block;}
+.lstreak.ok{color:var(--accent); text-shadow:0 0 8px rgba(255,211,42,.7);}
+.lstreak.bump{animation:bump .3s;}
+.laneStatus.missed{color:#ff6b81;}
+.lane.flashMiss{animation:laneMiss .9s ease-out;}
+@keyframes laneMiss{0%{background:#3a3f5e; filter:grayscale(1);}100%{}}
+#dBanner.missed{background:rgba(30,32,50,.96); border-style:dashed;}
+#dBanner.missed #dBannerText{color:#c9cde8;}
+#dBanner.missed small{color:#ff8a9a;}
 #csDanse{font-size:16px; font-weight:900; letter-spacing:2px; padding:12px 22px; border:none; border-radius:14px; cursor:pointer; color:#fff; font-style:italic;
   background:linear-gradient(135deg,#a55eea,#ff4757); box-shadow:0 5px 0 #5a1d6e, 0 0 24px rgba(165,94,234,.45);}
 #csDanse:active{transform:translateY(4px); box-shadow:0 1px 0 #5a1d6e;}
@@ -695,12 +712,15 @@ body.turbo .floater, body.turbo .ring, body.turbo #bubble, body.turbo #dBubble, 
       </div>
       <div class="dsCol dpanel">
         <div class="dsLbl">3 · CONTROLS</div>
-        <div class="dsToggle" id="dsLayouts"><button data-l="diamond">DIAMOND</button><button data-l="row">ROW</button></div>
+        <div class="dsToggle" id="dsLayouts"><button data-l="row">ROW (D F ␣ J K)</button><button data-l="diamond">DIAMOND</button></div>
         <div id="dsKeyViz"></div>
         <div id="dsKeyHint"></div>
         <div class="dsRow">Note speed <input type="range" id="dsSpeed" min="60" max="160" step="5" value="100"><b id="dsSpeedV">1.00×</b></div>
         <div class="dsRow">Audio offset <input type="range" id="dsOffset" min="-200" max="200" step="5" value="0"><b id="dsOffsetV">0 ms</b></div>
         <div class="dsRow"><label><input type="checkbox" id="dsHitSfx" checked> Hit sounds</label></div>
+        <div class="dsLbl" style="margin-top:4px">4 · RULE CHANGES</div>
+        <div class="dsToggle" id="dsReveal"><button data-r="standard">STANDARD</button><button data-r="noreveal">NO REVEAL</button></div>
+        <div id="dsRevealHint"></div>
       </div>
     </div>
     <div id="dsFoot"><div id="dsStatus"></div><button id="dsGo">♪ DANSE! ▶</button></div>
@@ -1696,21 +1716,35 @@ const Danse = (() => {
   const WINDOWS=[[0.045,'PERFECT',1,'#ffd32a'],[0.09,'GREAT',.75,'#2ed573'],[0.135,'GOOD',.5,'#3d8bff'],[0.185,'OK',.25,'#a55eea']];
   const MISS_W=0.185, SWAP_AFTER=10, LEAD=3.0;
   const DIFFS={
-    easy:{name:'EASY', color:'#2ed573', stars:'★☆☆', lanes:1, target:1.6, approach:2.8,
-      desc:'1 track · 4 parameters (shape, colour, size, symbol) · simple rules',
-      ladders:[{dims:{shape:3,color:3,size:3,symbol:3}, tiers:[[0],[0],[0,1],[1],[1],[0,1,2]]}]},
-    hard:{name:'HARD', color:'#ff7f2a', stars:'★★☆', lanes:1, target:0.8, approach:2.3,
-      desc:'1 track · 6 parameters · relational, numeric & combined rules',
-      ladders:[{dims:{shape:5,color:5,size:3,symbol:5,style:4,count:6}, tiers:[[1,2],[2,3],[3],[3,4],[4],[4,5],[5]]}]},
-    epic:{name:'EPIC', color:'#a55eea', stars:'★★★', lanes:3, target:0.78, approach:2.6,
+    beginner:{name:'BEGINNER', color:'#7fe0a5', stars:'★', lanes:1, target:3.2, approach:3.4,
+      desc:'1 track · 2 parameters (shape, colour) · one simple property · slow',
+      ladders:[{dims:{shape:3,color:3}, tiers:[[0]]}]},
+    easy:{name:'EASY', color:'#2ed573', stars:'★★', lanes:1, target:1.6, approach:3.0,
+      desc:'1 track · 3 parameters (+ size) · simple properties',
+      ladders:[{dims:{shape:3,color:3,size:3}, tiers:[[0],[0],[0,1]]}]},
+    normal:{name:'NORMAL', color:'#a3e635', stars:'★★★', lanes:1, target:1.6, approach:2.7, half:0.5, halfE:0.7,
+      desc:'1 track · 4 parameters (+ symbol) · properties & “same / different as previous”',
+      ladders:[{dims:{shape:3,color:3,size:3,symbol:3}, tiers:[[0],[0,1],[1],[0,1,2]]}]},
+    hard:{name:'HARD', color:'#ffd32a', stars:'★★★★', lanes:1, target:0.8, approach:2.4, sparse:true, half:0.45, halfE:0.82, strength:1.6,
+      desc:'1 track · 5 parameters (+ style) · sequences, AND / OR rules · 2× faster',
+      ladders:[{dims:{shape:4,color:4,size:3,symbol:4,style:3}, tiers:[[1],[1,2],[2,3],[3],[3,4]]}]},
+    expert:{name:'EXPERT', color:'#ff7f2a', stars:'★★★★★', lanes:1, target:0.8, approach:2.1, sparse:true, half:0.55, halfE:0.78, strength:1.4,
+      desc:'1 track · 6 parameters (+ count) · numeric, IF/THEN & XOR rules',
+      ladders:[{dims:{shape:5,color:5,size:3,symbol:5,style:4,count:6}, tiers:[[2,3],[3,4],[4],[4,5],[5]]}]},
+    duo:{name:'DUO', color:'#ff4757', stars:'★★★★★★', lanes:2, target:0.8, approach:2.5, sparse:true,
+      desc:'2 tracks at once · 2 independent rules · 4 & 5 parameters',
+      ladders:[{dims:{shape:3,color:3,size:3,symbol:3}, tiers:[[0,1],[1],[1,2],[2]]},
+               {dims:{shape:4,color:4,size:3,symbol:4,style:3}, tiers:[[1,2],[2,3],[3],[3,4]]}]},
+    epic:{name:'EPIC', color:'#a55eea', stars:'★★★★★★★', lanes:3, target:0.78, approach:2.6, sparse:true,
       desc:'3 tracks at once · 3 independent rules · 4 to 6 parameters',
       ladders:[{dims:{shape:3,color:3,size:3,symbol:3}, tiers:[[0,1],[1],[1,2],[2]]},
                {dims:{shape:4,color:4,size:3,symbol:4,style:3}, tiers:[[1,2],[2,3],[3],[3,4]]},
                {dims:{shape:5,color:5,size:3,symbol:5,style:4,count:6}, tiers:[[2,3],[3,4],[4],[4,5]]}]},
   };
+  const CRACK_STREAK=5, NOREVEAL_STREAK=10;
   const LANES=[{name:'TRACK α',color:'#3d8bff'},{name:'TRACK β',color:'#ff7f2a'},{name:'TRACK γ',color:'#2ed573'}];
   let hooks=null, open=false, view='setup';
-  const settings={diff:'easy', layout:'diamond', speed:1, offset:0, hitSfx:true, track:0};
+  const settings={diff:'normal', layout:'row', reveal:'standard', speed:1, offset:0, hitSfx:true, track:0};
   const tracks=[];
   let dac=null, G=null, raf=null, keyLabels={}, builtinsLoaded=0;
   const ctxA=()=>{ if(!dac) dac=new (window.AudioContext||window.webkitAudioContext)(); if(dac.state==='suspended' && !(G&&G.paused)) dac.resume(); return dac; };
@@ -1756,10 +1790,10 @@ const Danse = (() => {
     const minGap=2*MISS_W+0.02, ph=ana.downbeatPhase;
     for(let i=0;i<B.length;i++){
       const e=ana.energy[i]; if(e<0.33) continue;
-      const kk=(diff!=='easy' && e<0.6)? k*2 : k;
+      const kk=(D.sparse && e<0.6)? k*2 : k;
       const pos=((i-ph)%k+k)%k, pos2=((i-ph)%kk+kk)%kk;
       let place=pos2===0;
-      if(!place && diff!=='easy' && e>0.82 && k>=2 && pos===k/2 && (ana.strength[i]||0)>1.6 && rng()<0.45) place=true;
+      if(!place && D.half && e>(D.halfE||0.8) && k>=2 && pos===k/2 && (ana.strength[i]||0)>(D.strength||0) && rng()<D.half) place=true;
       if(!place) continue;
       const t=B[i];
       if(t<0.4 || t>ana.duration-1.0) continue;
@@ -1777,9 +1811,10 @@ const Danse = (() => {
   function laneCfg(l,idx){ const lad=G.D.ladders[l]; return {name:`${G.D.name} · ${LANES[l].name} · rule ${idx+1}`, dims:lad.dims, tiers:lad.tiers[Math.min(idx,lad.tiers.length-1)]}; }
   function newLaneGame(l,idx){ return Engine.newGame(0,(G.rng()*2**31)|0,laneCfg(l,idx)); }
   async function start(opts={}){
-    for(const k of ['diff','layout','speed','offset','hitSfx','track']) if(opts[k]!=null) settings[k]=opts[k];
+    for(const k of ['diff','layout','reveal','speed','offset','hitSfx','track']) if(opts[k]!=null) settings[k]=opts[k];
     if(opts.difficulty) settings.diff=opts.difficulty;
-    if(!DIFFS[settings.diff]) throw new Error('Unknown difficulty: '+settings.diff+' (easy | hard | epic)');
+    if(!DIFFS[settings.diff]) throw new Error('Unknown difficulty: '+settings.diff+' ('+Object.keys(DIFFS).join(' | ')+')');
+    if(!['standard','noreveal'].includes(settings.reveal)) throw new Error('reveal must be "standard" or "noreveal"');
     syncBuiltins();
     const track=tracks[settings.track]; if(!track) throw new Error('No track #'+settings.track+'. See arena.danse.tracks() or arena.danse.loadTrack().');
     if(!open) openSetup();
@@ -1791,10 +1826,10 @@ const Danse = (() => {
     const D=DIFFS[settings.diff], rng=mulberry(seed);
     G={seed, rng, track, ana:track.ana, D, diff:settings.diff, approach:D.approach/settings.speed, offset:settings.offset/1000,
        lanes:[], live:[], nextNote:0, ids:0, score:0, disp:0, combo:0, maxCombo:0, n:0, sumT:0, sumB:0, cracked:0, history:[],
-       counts:{PERFECT:0,GREAT:0,GOOD:0,OK:0,MISS:0}, beatPtr:0, lastBeatT:-9, paused:false, ended:false, stopped:false, cd:null, lastRx:0};
+       counts:{PERFECT:0,GREAT:0,GOOD:0,OK:0,MISS:0}, missed:0, reveal:settings.reveal, beatPtr:0, lastBeatT:-9, paused:false, ended:false, stopped:false, cd:null, lastRx:0};
     const ch=buildChart(G.ana,G.diff,rng); G.notes=ch.notes; G.k=ch.k;
     G.bounds=G.ana.beats.filter((_,i)=>((i-G.ana.downbeatPhase)%16+16)%16===0);
-    for(let l=0;l<D.lanes;l++) G.lanes.push({l, ...LANES[l], ruleIdx:0, game:newLaneGame(l,0), nextGame:null, swapAt:Infinity, correct:0, cards:0, revealed:[], fresh:false});
+    for(let l=0;l<D.lanes;l++) G.lanes.push({l, ...LANES[l], ruleIdx:0, game:newLaneGame(l,0), nextGame:null, swapAt:Infinity, correct:0, cards:0, streak:0, best:0, verdict:null, revealed:[], fresh:false});
     showView('play'); buildLanes(); renderKeys(); updateHud(true);
     $('dTrackName').innerHTML=`${esc(track.title)}<small>${D.name} · ${G.ana.bpm.toFixed(0)} BPM · ÷${G.k}</small>`;
     $('dProgress').querySelectorAll('.dMark').forEach(m=>m.remove());
@@ -1861,13 +1896,15 @@ const Danse = (() => {
     const many=G.lanes.length>1;
     G.lanes.forEach(L=>{
       const el=document.createElement('div'); el.className='lane'; el.style.setProperty('--lc',L.color); el.style.setProperty('--lcA',L.color+'66');
-      el.innerHTML=`<div class="laneHead"><b>${L.name}</b><span class="lr"></span><span class="pips"></span><span class="laneStatus"></span></div>
+      el.innerHTML=`<div class="laneHead"><b>${L.name}</b><span class="lr"></span><span class="pips"></span><span class="lstreak"></span><span class="laneStatus"></span></div>
         <div class="laneBody"><span class="chainLbl">ACCEPTED SEQUENCE ◀</span><div class="chain"></div><div class="rejs"></div><div class="frame"></div><div class="cards"></div></div>`;
       host.appendChild(el);
       L.el=el; L.body=el.querySelector('.laneBody'); L.chainEl=el.querySelector('.chain'); L.rejEl=el.querySelector('.rejs');
       L.frameEl=el.querySelector('.frame'); L.cardsEl=el.querySelector('.cards');
-      L.pipsEl=el.querySelector('.pips'); L.statusEl=el.querySelector('.laneStatus'); L.ruleEl=el.querySelector('.lr');
-      L.pipsEl.innerHTML=Array.from({length:SWAP_AFTER+1},()=>'<i class="pip"></i>').join('');
+      L.pipsEl=el.querySelector('.pips'); L.statusEl=el.querySelector('.laneStatus'); L.ruleEl=el.querySelector('.lr'); L.streakEl=el.querySelector('.lstreak');
+      const np=G.reveal==='noreveal'? NOREVEAL_STREAK : SWAP_AFTER+1;
+      L.pipsEl.innerHTML=Array.from({length:np},()=>'<i class="pip"></i>').join('');
+      L.pipsEl.title=G.reveal==='noreveal'? `streak toward ×${NOREVEAL_STREAK} — the rule only changes on a ×${NOREVEAL_STREAK} streak` : `correct calls toward ${SWAP_AFTER+1} — you need a ×${CRACK_STREAK} streak at that moment to crack it`;
       updateLaneHead(L);
     });
     measure(); requestAnimationFrame(measure);
@@ -1937,14 +1974,18 @@ const Danse = (() => {
     const T=w? w[2]:0, grade=w? w[1]:'MISS', brier=r.bet.brier, S=1-brier/0.25;
     const side=!miss && bet!==0.5, correct=side && ((bet>0.5)===r.accepted);
     L.cards++; if(correct) L.correct++;
+    if(correct){ L.streak++; L.best=Math.max(L.best,L.streak); } else if(miss || side) L.streak=0;   // a 50% bet neither extends nor breaks the streak
     if(miss||S<0) G.combo=0; else if(S>0 && T>0) G.combo++;
     G.maxCombo=Math.max(G.maxCombo,G.combo);
     let pts=300*T+700*S; if(pts>0) pts*=1+Math.min(G.combo,40)/40; pts=Math.round(pts);
     G.score+=pts; G.n++; G.sumT+=T; G.sumB+=brier; G.counts[grade]++;
-    const rec={lane:n.lane, rule:n.rule, t:+n.t.toFixed(3), dt:miss?null:+dt.toFixed(4), p:bet, accepted:r.accepted, brier:+brier.toFixed(4), timing:grade, correct, points:pts};
+    const rec={lane:n.lane, rule:n.rule, t:+n.t.toFixed(3), dt:miss?null:+dt.toFixed(4), p:bet, accepted:r.accepted, brier:+brier.toFixed(4), timing:grade, correct, streak:L.streak, points:pts};
     G.history.push(rec); n.out=rec;
     feedback(n,L,r,w,T,S,pts,dt,miss,brier,bet);
-    if(L.correct>SWAP_AFTER && L.swapAt===Infinity) scheduleSwap(L);
+    if(L.swapAt===Infinity){
+      if(G.reveal==='noreveal'){ if(L.streak>=NOREVEAL_STREAK) scheduleSwap(L,'cracked'); }
+      else if(L.correct>SWAP_AFTER) scheduleSwap(L, L.streak>=CRACK_STREAK? 'cracked' : 'missed');
+    }
     updateLaneHead(L); updateHud();
     hooks.emit({type:'danse-hit', ...rec, item:n.item});
   }
@@ -1991,7 +2032,7 @@ const Danse = (() => {
   }
 
   /* ---------- rule swap at the next break ---------- */
-  function scheduleSwap(L){
+  function scheduleSwap(L,verdict='cracked'){
     const now=songNow(), earliest=now+G.approach+0.15, gapLen=Math.max(2.2, 6*G.ana.period);
     const ln=G.notes.filter(n=>n.lane===L.l && n.state!=='cut');
     let cand=Infinity, kind='';
@@ -2004,28 +2045,36 @@ const Danse = (() => {
       cand=bnd; kind='phrase';
     }
     if(!isFinite(cand)) return;
-    L.swapAt=cand; L.fresh=false; L.nextGame=newLaneGame(L.l,L.ruleIdx+1);
+    L.swapAt=cand; L.fresh=false; L.verdict=verdict; L.streakAtCall=L.streak; L.nextGame=newLaneGame(L.l,L.ruleIdx+1);
     const m=document.createElement('div'); m.className='dMark'; m.style.left=(cand/G.ana.duration*100)+'%'; m.style.setProperty('--mc',L.color); $('dProgress').appendChild(m);
-    L.statusEl.textContent='★ CRACKED! REVEAL ON THE NEXT BREAK…'; L.statusEl.classList.add('blink');
-    if(!turbo()){ dReact('win',1200); dSay(pickLine('win')); }
-    hooks.emit({type:'danse-cracked', lane:L.l, swapAt:+cand.toFixed(3), kind});
+    const ok=verdict==='cracked';
+    L.statusEl.textContent= ok? `★ CRACKED (×${L.streak} streak)! REVEAL ON THE NEXT BREAK…` : `✖ ${SWAP_AFTER+1} CORRECT BUT NO ×${CRACK_STREAK} STREAK — RULE MISSED · REVEAL ON THE NEXT BREAK…`;
+    L.statusEl.classList.toggle('missed',!ok); L.statusEl.classList.add('blink');
+    if(!turbo()){ if(ok){ dReact('win',1200); dSay(pickLine('win')); } else { dReact('lose',1200); dSay(pickLine('lose')); } }
+    hooks.emit({type:'danse-cracked', lane:L.l, swapAt:+cand.toFixed(3), kind, verdict, streak:L.streak});
   }
   function doSwap(L){
     if(!L.nextGame) return;
-    const rule=L.game.reveal().rule, bonus=2000+Math.max(0,30-L.cards)*100;
-    L.revealed.push({index:L.ruleIdx, rule, cards:L.cards, correct:L.correct, cracked:true});
-    G.score+=bonus; G.cracked++;
-    L.game=L.nextGame; L.nextGame=null; L.ruleIdx++; L.correct=0; L.cards=0; L.swapAt=Infinity;
-    L.statusEl.textContent=''; L.statusEl.classList.remove('blink');
+    const ok=L.verdict!=='missed';
+    const rule=L.game.reveal().rule, bonus= ok? 2000+Math.max(0,30-L.cards)*100 : 0;
+    L.revealed.push({index:L.ruleIdx, rule, cards:L.cards, correct:L.correct, streak:L.streakAtCall||0, best:L.best, cracked:ok, verdict:ok?'cracked':'missed'});
+    G.score+=bonus; if(ok) G.cracked++; else G.missed++;
+    const nRule=L.revealed.length, nCards=L.cards;
+    L.game=L.nextGame; L.nextGame=null; L.ruleIdx++; L.correct=0; L.cards=0; L.streak=0; L.best=0; L.swapAt=Infinity; L.verdict=null;
+    L.statusEl.textContent=''; L.statusEl.classList.remove('blink','missed');
     [...L.chainEl.children, ...L.rejEl.children].forEach((c,i)=>{ c.style.transition='transform .5s, opacity .5s'; c.style.transform=`translateY(${60+i*6}px) rotate(${i*9}deg)`; c.style.opacity='0'; setTimeout(()=>c.remove(),520); });
-    banner(L,`★ RULE CRACKED · ${L.name} · rule ${L.revealed.length} · ${L.revealed[L.revealed.length-1].cards} cards · +${bonus.toLocaleString('en-US')}`,rule);
-    FX.restart(L.el,'flash'); updateLaneHead(L); updateHud();
-    if(!turbo()){ SFX.reveal(); FX.onoma('ババーン!','RULE CRACKED!',L.color,-8); FX.bigParty(); dReact('victory',2400); setTimeout(()=>dSay(pickLine('victory')),300); }
-    hooks.emit({type:'danse-swap', lane:L.l, rule, newRuleIndex:L.ruleIdx, bonus});
+    if(ok) banner(L.color,`★ RULE CRACKED · ${L.name} · rule ${nRule} · ${nCards} cards · +${bonus.toLocaleString('en-US')}`,rule,false);
+    else banner('#8b90c0',`✖ RULE MISSED · ${L.name} · rule ${nRule} · no ×${CRACK_STREAK} streak — here is what it was:`,rule,true);
+    FX.restart(L.el, ok?'flash':'flashMiss'); updateLaneHead(L); updateHud();
+    if(!turbo()){
+      if(ok){ SFX.reveal(); FX.onoma('ババーン!','RULE CRACKED!',L.color,-8); FX.bigParty(); dReact('victory',2400); setTimeout(()=>dSay(pickLine('victory')),300); }
+      else { SFX.fail(); FX.onoma('ズーン…','RULE MISSED','#8b90c0',-4); FX.shake(0.8); dReact('defeat',2400); setTimeout(()=>dSay(pickLine('defeat')),300); }
+    }
+    hooks.emit({type:'danse-swap', lane:L.l, rule, verdict:ok?'cracked':'missed', newRuleIndex:L.ruleIdx, bonus});
   }
   let bannerT=null;
-  function banner(L,head,text){
-    const b=$('dBanner'); b.classList.remove('hidden','out'); b.style.setProperty('--bc',L.color);
+  function banner(color,head,text,missed){
+    const b=$('dBanner'); b.classList.remove('hidden','out'); b.style.setProperty('--bc',color); b.classList.toggle('missed',!!missed);
     $('dBannerHead').textContent=head; const tx=$('dBannerText'); FX.restart(b,'x');
     if(turbo()) tx.textContent=text; else { let i=0; tx.textContent=''; const iv=setInterval(()=>{ tx.textContent=text.slice(0,i+=3); if(i>=text.length){ tx.textContent=text; clearInterval(iv);} },18); }
     clearTimeout(bannerT); bannerT=setTimeout(()=>{ b.classList.add('out'); setTimeout(()=>b.classList.add('hidden'),420); }, 5200);
@@ -2035,14 +2084,20 @@ const Danse = (() => {
   function updateLaneHead(L){
     if(!L.el) return;
     L.ruleEl.textContent=`RULE #${L.ruleIdx+1} · ${Object.keys(L.game.getState().params).filter(k=>L.game.getState().params[k]).length} params`;
-    [...L.pipsEl.children].forEach((p,i)=>p.classList.toggle('on',i<L.correct));
+    const fill=G.reveal==='noreveal'? L.streak : L.correct;
+    [...L.pipsEl.children].forEach((p,i)=>p.classList.toggle('on',i<fill));
+    const need=G.reveal==='noreveal'? NOREVEAL_STREAK : CRACK_STREAK;
+    L.streakEl.textContent=`🔥×${L.streak}`+(G.reveal==='noreveal'? ` / ${need}` : (L.streak>=need?' ✓':` (need ×${need})`));
+    L.streakEl.classList.toggle('ok',L.streak>=need);
+    if(L.streak>0 && L.streak!==L.lastStreak) FX.restart(L.streakEl,'bump');
+    L.lastStreak=L.streak;
   }
   function updateHud(){
     if(!G) return;
     $('dRhythm').textContent=G.n? Math.round(G.sumT/G.n*100)+'%' : '—';
     $('dBrier').textContent=G.n? (G.sumB/G.n).toFixed(3) : '—';
     $('dCombo').textContent=G.combo; $('dComboBox').classList.toggle('fire',G.combo>=10);
-    $('dCracked').textContent=G.cracked;
+    $('dCracked').innerHTML=`${G.cracked}<small style="font-size:11px;color:#ff6b81"> ✖${G.missed}</small>`;
   }
   function renderKeys(){
     const codes=LAYOUTS[settings.layout].codes, np=['2','4','5','6','8'];
@@ -2082,20 +2137,20 @@ const Danse = (() => {
     if(!G||G.ended) return; G.ended=true; cancelAnimationFrame(raf); raf=null; FX.rush(false);
     const rules=[]; G.lanes.forEach(L=>{ L.revealed.forEach(r=>rules.push({lane:L.l, name:L.name, color:L.color, ...r}));
       const st=L.game.getState(); const fin=st.revealed? st.rule : L.game.reveal().rule;
-      rules.push({lane:L.l, name:L.name, color:L.color, index:L.ruleIdx, rule:fin, cards:L.cards, correct:L.correct, cracked:false}); });
+      rules.push({lane:L.l, name:L.name, color:L.color, index:L.ruleIdx, rule:fin, cards:L.cards, correct:L.correct, best:L.best, cracked:false, verdict:'unfinished'}); });
     const acc=G.n? G.sumT/G.n : 0, mb=G.n? G.sumB/G.n : 0.25, skill=1-mb/0.25;
     const rating=0.35*acc+0.65*Math.max(0,Math.min(1,skill/0.7));
     const grade=rating>=0.9?'S':rating>=0.8?'A':rating>=0.66?'B':rating>=0.5?'C':'D';
     const gc={S:'#ffd32a',A:'#2ed573',B:'#3d8bff',C:'#a55eea',D:'#ff4757'}[grade];
-    G.result={grade, rating:+rating.toFixed(3), score:G.score, rhythm:+acc.toFixed(3), brier:+mb.toFixed(4), maxCombo:G.maxCombo, cracked:G.cracked, counts:{...G.counts}, cards:G.n, rules};
+    G.result={grade, rating:+rating.toFixed(3), score:G.score, rhythm:+acc.toFixed(3), brier:+mb.toFixed(4), maxCombo:G.maxCombo, cracked:G.cracked, missed:G.missed, reveal:G.reveal, counts:{...G.counts}, cards:G.n, rules};
     const R=$('dResults');
-    R.innerHTML=`<div class="modal" style="min-width:min(640px,92vw)"><div style="letter-spacing:4px;color:var(--dim);font-size:12px">${esc(G.track.title)} · ${G.D.name}</div>
+    R.innerHTML=`<div class="modal" style="min-width:min(640px,92vw)"><div style="letter-spacing:4px;color:var(--dim);font-size:12px">${esc(G.track.title)} · ${G.D.name} · ${G.reveal==='noreveal'?'NO REVEAL':'STANDARD'}</div>
       <div class="grade" style="--gc:${gc}">${grade}</div>
       <div style="font-size:34px;font-weight:900;color:var(--accent)">${G.score.toLocaleString('en-US')}</div>
-      <div class="rgrid"><div><span>RHYTHM</span><b>${Math.round(acc*100)}%</b></div><div><span>MEAN BRIER</span><b>${mb.toFixed(3)}</b></div><div><span>RULES CRACKED</span><b>${G.cracked}</b></div>
+      <div class="rgrid"><div><span>RHYTHM</span><b>${Math.round(acc*100)}%</b></div><div><span>MEAN BRIER</span><b>${mb.toFixed(3)}</b></div><div><span>CRACKED · MISSED</span><b>${G.cracked} · <span style="display:inline;font-size:22px;color:#ff6b81;letter-spacing:0">${G.missed}</span></b></div>
         <div><span>MAX COMBO</span><b>${G.maxCombo}</b></div><div><span>CARDS</span><b>${G.n}</b></div>
         <div><span>P · G · G · O · M</span><b style="font-size:15px">${G.counts.PERFECT} · ${G.counts.GREAT} · ${G.counts.GOOD} · ${G.counts.OK} · ${G.counts.MISS}</b></div></div>
-      <div class="rrules">${rules.map(r=>`<div style="--lc:${r.color}"><small>${r.name} · RULE #${r.index+1} · ${r.cracked?'★ CRACKED in '+r.cards+' cards':'not cracked ('+r.correct+'/'+(SWAP_AFTER+1)+')'}</small><br>${esc(r.rule)}</div>`).join('')}</div>
+      <div class="rrules">${rules.map(r=>`<div style="--lc:${r.color}"><small>${r.name} · RULE #${r.index+1} · ${r.verdict==='cracked'?'★ CRACKED in '+r.cards+' cards (×'+r.streak+' streak)':r.verdict==='missed'?'✖ MISSED — '+r.correct+' correct, best streak ×'+r.best:'unfinished — '+r.correct+' correct, best streak ×'+r.best}</small><br>${esc(r.rule)}</div>`).join('')}</div>
       <div class="btnrow" style="justify-content:center"><button class="pbtn gold" id="drRetry">↻ AGAIN (Enter)</button><button class="pbtn ghost" id="drSetup">⚙ SETUP</button><button class="pbtn ghost" id="drArena">← ARENA</button></div></div>`;
     R.classList.remove('hidden'); view='results';
     R.querySelector('#drRetry').onclick=()=>go(); R.querySelector('#drSetup').onclick=()=>showView('setup'); R.querySelector('#drArena').onclick=()=>close();
@@ -2117,7 +2172,11 @@ const Danse = (() => {
     $('dsTracks').innerHTML=tracks.length? tracks.map((t,i)=>`<div class="dsTrack ${i===settings.track?'sel':''}" data-i="${i}"><b>${t.builtin?'★ ':'🎵 '}${esc(t.title)}</b><small>${esc(t.subtitle)}${t.ana?` · ${t.ana.bpm.toFixed(1)} BPM · ${fmtTime(t.ana.duration)}`:''}</small></div>`).join('')
       : '<div style="color:var(--dim);font-size:12px">No built-in track found — drop a file below (put <b>laplaces-angel.track.js</b> next to this page for the demo track).</div>';
     $('dsTracks').querySelectorAll('.dsTrack').forEach(el=>el.onclick=()=>{ settings.track=+el.dataset.i; SFX.click(); renderSetup(); analyzeSelected(); });
-    $('dsDiffs').innerHTML=Object.entries(DIFFS).map(([k,d])=>`<div class="dsDiff ${k===settings.diff?'sel':''}" data-d="${k}" style="--dc:${d.color}"><span class="stars">${d.stars}</span><b>${d.name}</b><p>${d.desc}</p></div>`).join('');
+    $('dsDiffs').innerHTML=Object.entries(DIFFS).map(([k,d],i)=>`<div class="dsDiff ${k===settings.diff?'sel':''}" data-d="${k}" style="--dc:${d.color}"><span class="stars">${d.stars}</span><b><span class="lvn">${i+1}</span>${d.name}</b><p>${d.desc}</p></div>`).join('');
+    $('dsReveal').querySelectorAll('button').forEach(b=>{ b.classList.toggle('sel',b.dataset.r===settings.reveal); b.onclick=()=>{ settings.reveal=b.dataset.r; SFX.click(); renderSetup(); }; });
+    $('dsRevealHint').innerHTML= settings.reveal==='standard'
+      ? `After <b>${SWAP_AFTER+1} correct calls</b> the rule is revealed & replaced at the next break. It only counts as <b style="color:#ffd32a">★ CRACKED</b> if you are on a <b>×${CRACK_STREAK} streak</b> at that moment — otherwise <b style="color:#ff6b81">✖ RULE MISSED</b>.`
+      : `The rule <b>never</b> gets revealed by accident: it only changes when you land a <b>×${NOREVEAL_STREAK} streak</b> of correct calls on that track. Otherwise you keep the same rule until the song ends.`;
     $('dsDiffs').querySelectorAll('.dsDiff').forEach(el=>el.onclick=()=>{ settings.diff=el.dataset.d; SFX.kakin(); renderSetup(); trackInfo(); });
     $('dsLayouts').querySelectorAll('button').forEach(b=>{ b.classList.toggle('sel',b.dataset.l===settings.layout); b.onclick=()=>{ settings.layout=b.dataset.l; SFX.click(); renderSetup(); }; });
     const kv=$('dsKeyViz'), codes=LAYOUTS[settings.layout].codes; kv.className=settings.layout;
@@ -2133,7 +2192,7 @@ const Danse = (() => {
     if(!t){ $('dsTrackInfo').textContent=''; return; }
     if(!t.ana){ $('dsTrackInfo').innerHTML='<i>Beat analysis runs when the track is selected (takes ~1 s).</i>'; return; }
     const k=pickK(t.ana.period,DIFFS[settings.diff].target);
-    $('dsTrackInfo').innerHTML=`<b>${t.ana.bpm.toFixed(1)} BPM</b> · ${fmtTime(t.ana.duration)} · ${t.ana.beats.length} beats detected<br>${DIFFS[settings.diff].name}: 1 card every ${k} beat${k>1?'s':''} (${(k*t.ana.period).toFixed(2)} s)${DIFFS[settings.diff].lanes>1?' spread over 3 tracks':''}`;
+    $('dsTrackInfo').innerHTML=`<b>${t.ana.bpm.toFixed(1)} BPM</b> · ${fmtTime(t.ana.duration)} · ${t.ana.beats.length} beats detected<br>${DIFFS[settings.diff].name}: 1 card every ${k} beat${k>1?'s':''} (${(k*t.ana.period).toFixed(2)} s)${DIFFS[settings.diff].lanes>1?' spread over '+DIFFS[settings.diff].lanes+' tracks':''}`;
   }
   async function analyzeSelected(){
     const t=tracks[settings.track]; if(!t||t.ana) return;
@@ -2177,7 +2236,8 @@ const Danse = (() => {
       difficulty:G.diff, seed:G.seed, approach:G.approach, score:G.score, combo:G.combo, maxCombo:G.maxCombo,
       rhythm:G.n? +(G.sumT/G.n).toFixed(3) : null, brier:G.n? +(G.sumB/G.n).toFixed(4) : null, cards:G.n, cracked:G.cracked, counts:{...G.counts},
       windows:{perfect:WINDOWS[0][0], great:WINDOWS[1][0], good:WINDOWS[2][0], ok:WINDOWS[3][0], miss:MISS_W}, swapAfterCorrect:SWAP_AFTER+1,
-      lanes:G.lanes.map(L=>{ const st=L.game.getState(); return {lane:L.l, name:L.name, ruleIndex:L.ruleIdx, correct:L.correct, cards:L.cards,
+      reveal:G.reveal, crackStreak:CRACK_STREAK, noRevealStreak:NOREVEAL_STREAK, missed:G.missed,
+      lanes:G.lanes.map(L=>{ const st=L.game.getState(); return {lane:L.l, name:L.name, ruleIndex:L.ruleIdx, correct:L.correct, streak:L.streak, bestStreak:L.best, pendingVerdict:L.verdict, cards:L.cards,
         params:st.params, accepted:st.accepted.slice(-8), rejected:st.rejected.slice(-8).map(r=>r.item), swapAt:isFinite(L.swapAt)? +L.swapAt.toFixed(3) : null, revealedRules:L.revealed.map(r=>({...r})) }; }),
       visible:G.live.map(n=>({id:n.id, lane:n.lane, t:+n.t.toFixed(3), inSec:+(n.t-now).toFixed(3), item:{...n.item}})).sort((a,b)=>a.t-b.t),
       schedule:G.notes.filter(n=>n.state==='pending' && n.t-now<6).map(n=>({lane:n.lane, t:+n.t.toFixed(3)})),
@@ -2304,7 +2364,8 @@ Methods:
 DANSE MODE (rhythm × prediction) — arena.danse:
   .tracks()                    → available tracks (built-in + loaded)
   .loadTrack(arrayBuffer,title)→ add any audio file, returns its index
-  .start({difficulty:'easy'|'hard'|'epic', track:0, seed?, speed?, offset?})
+  .start({difficulty:'beginner'|'easy'|'normal'|'hard'|'expert'|'duo'|'epic',
+          reveal:'standard'|'noreveal', track:0, seed?, speed?, offset?})
                                → Promise; beat analysis runs in-browser
   .getState()                  → songTime, visible cards {lane,t,inSec,item},
                                  schedule (next note times), lanes (accepted
@@ -2314,8 +2375,11 @@ DANSE MODE (rhythm × prediction) — arena.danse:
                                  (timing judged: perfect ±45ms … miss >185ms)
   .pause() .resume() .close()
   Events: danse-start · danse-hit · danse-cracked · danse-swap · danse-end
-  A rule is revealed & replaced at the next break once a lane has >10
-  correct calls. Per card: 300·timing + 700·(1 − brier/0.25), × combo.
+  reveal:'standard' → after 11 correct calls on a track, its rule is revealed
+    & replaced at the next break: ★ cracked if that track's streak is ≥5,
+    otherwise ✖ missed (no bonus). reveal:'noreveal' → the rule only changes
+    on a ×10 streak. A 50% bet neither extends nor breaks a streak.
+  Per card: 300·timing + 700·(1 − brier/0.25), × combo.
 
 URL params: ?skipIntro=1 &char=bayes &turbo=1 &level=3 &seed=42
 State is also published in <script id="arena-state" type="application/json">;
